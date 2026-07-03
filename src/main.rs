@@ -9,6 +9,7 @@ mod imports;
 mod links;
 mod enforcer;
 mod monitor;
+mod service;
 
 use cli::run;
 
