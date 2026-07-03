@@ -16,8 +16,8 @@ pub fn generate(db: &Database, cfg: &ConfigStore, username: &str, to_file: Optio
     for pn in &proto_names {
         if let Some(proto) = cfg.protocols.get(*pn) {
             match proto.proto_type.as_str() {
-                "vless" => links.push(format!("vless://{}@{}:{}?encryption=none&security=tls&sni={}&fp=chrome&type=ws&host={}&path={}#{}",
-                    proto.uuid.as_deref().unwrap_or(""), ip, proto.port, proto.sni.as_deref().unwrap_or(domain), domain, enc(proto.ws_path.as_deref().unwrap_or("/")), pn)),
+                "vless" => links.push(format!("vless://{}@{}:443?encryption=none&security=tls&sni={}&fp=chrome&type=ws&host={}&path={}#{}",
+                    proto.uuid.as_deref().unwrap_or(""), ip, proto.sni.as_deref().unwrap_or(domain), domain, enc(proto.ws_path.as_deref().unwrap_or("/")), pn)),
                 "vmess" => {
                     let v = serde_json::json!({"v":"2","ps":pn,"add":ip,"port":proto.port,"id":proto.uuid.as_deref().unwrap_or(""),"aid":0,"net":"ws","type":"none","host":domain,"path":proto.ws_path.as_deref().unwrap_or("/"),"tls":"tls","sni":domain});
                     links.push(format!("vmess://{}", base64::Engine::encode(&base64::engine::general_purpose::STANDARD, v.to_string().as_bytes())));

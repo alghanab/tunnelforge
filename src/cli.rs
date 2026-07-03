@@ -144,7 +144,7 @@ pub fn run() -> anyhow::Result<()> {
             PlanAction::Remove { name } => plans::remove(&name),
         },
         Commands::User { action } => match action {
-            UserAction::Add { username, plan } => users::add(&db, &username, &plan),
+            UserAction::Add { username, plan } => users::add(&db, &cfg, &username, &plan),
             UserAction::List => users::list(&db),
             UserAction::Show { username } => users::show(&db, &username),
             UserAction::Disable { username } => users::set_status(&db, &username, "suspended"),

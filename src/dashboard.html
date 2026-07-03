@@ -336,7 +336,7 @@ async function copyLink(text) {
 function makeLink(proto) {
   const ip = DATA.vps_ip || 'YOUR_IP';
   const domain = DATA.vps_domain || '';
-  if (proto.type === 'vless') return `vless://${proto.uuid||''}@${ip}:${proto.port}?encryption=none&security=tls&sni=${domain}&fp=chrome&type=ws&host=${domain}&path=${encodeURIComponent(proto.ws_path||'/')}#${proto.name}`;
+  if (proto.type === 'vless') { const sni = domain || ip; return `vless://${proto.uuid||''}@${ip}:443?encryption=none&security=tls&sni=${sni}&fp=chrome&type=ws&host=${domain}&path=${encodeURIComponent(proto.ws_path||'/')}#${proto.name}`; }
   if (proto.type === 'mtproto') return `tg://proxy?server=${ip}&port=${proto.port}&secret=${proto.secret||''}`;
   if (proto.type === 'vmess') return `vmess://${btoa(JSON.stringify({v:"2",ps:proto.name,add:ip,port:proto.port,id:proto.uuid||'',aid:0,net:"ws",type:"none",host:domain,path:proto.ws_path||'/',tls:"tls",sni:domain}))}`;
   return '';
@@ -370,7 +370,7 @@ function render() {
       <div style="min-width:80px">${p.exit_node}</div>
       <div class="flow-arrow">→</div>
       <div class="flow-detail">${node?.server?.split(':')[0] || 'direct'}</div>
-      <div class="flow-tag">${badge(':'+p.port, 'blue')}</div>
+      <div class="flow-tag">${badge(':443', 'blue')}</div>
     </div>`;
   }).join('') || '<div class="empty"><div class="empty-icon">📡</div><div class="empty-title">No connections yet</div><div class="empty-desc">Add exit nodes and protocols to get started</div></div>';
 
@@ -399,7 +399,7 @@ function render() {
       <div class="node-info">
         <div class="node-name">${p.name} ${badge(p.type, 'blue')}</div>
         <div class="node-server">Port ${p.port} → ${p.exit_node}</div>
-        <div class="node-meta"><span>${p.ws_path||'direct'}</span></div>
+        <div class="node-meta"><span>Internal :${p.port}</span><span>External :443</span><span>${p.ws_path||''}</span></div>
       </div>
       <div class="user-status ${p.active?'active':'suspended'}"></div>
     </div>`;
