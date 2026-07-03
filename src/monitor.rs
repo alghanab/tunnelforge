@@ -34,6 +34,7 @@ pub fn status(db: &Database, cfg: &ConfigStore) -> Result<()> {
         println!();
     }
 
+    let users = db.list_users().unwrap_or_default();
     let active = users.iter().filter(|u| u.status == "active").count();
     println!("Users: {} total, {} active", users.len(), active);
     Ok(())

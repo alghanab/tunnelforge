@@ -12,6 +12,7 @@ mod monitor;
 mod service;
 mod web;
 mod sub;
+mod tester;
 
 fn main() -> anyhow::Result<()> {
     cli::run()

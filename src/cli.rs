@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use crate::{config::ConfigStore, db::Database, nodes, protocols, imports, plans, users, links, enforcer, monitor, service, sub, web};
+use crate::{config::ConfigStore, db::Database, nodes, protocols, imports, plans, users, links, enforcer, monitor, service, sub, web, tester};
 
 #[derive(Parser)]
 #[command(name = "tunnelforge", version = "0.3.0", about = "Manage censorship bypass proxy tunnels")]
@@ -23,6 +23,21 @@ pub enum Commands {
         #[arg(long, default_value = "8080")] port: u16,
         #[arg(long, default_value = "")] path: String,
         #[arg(long)] password: Option<String>,
+    },
+    /// Test bulk proxy configs for connectivity and health
+    Tester {
+        /// File containing proxy configs (one per line). If omitted, reads from stdin.
+        #[arg(long, short)]
+        file: Option<String>,
+        /// Also perform HTTP test (slower but more thorough)
+        #[arg(long, default_value = "false")]
+        http: bool,
+        /// Auto-add healthy configs to connection list
+        #[arg(long, default_value = "false")]
+        auto_add: bool,
+        /// Default name prefix for auto-added configs
+        #[arg(long, default_value = "")]
+        prefix: String,
     },
     Status,
     Map,
@@ -122,26 +137,26 @@ pub fn run() -> anyhow::Result<()> {
         },
         Commands::Node { action } => match action {
             NodeAction::Add { name, r#type, server, key, socks_port, external_port } => {
-                nodes::add(&name, &r#type, server, key, socks_port, external_port)
+                nodes::add(&cfg, &name, &r#type, server, key, socks_port, external_port)
             }
             NodeAction::List => nodes::list(&cfg),
-            NodeAction::Test { name } => nodes::test(&name),
-            NodeAction::Remove { name } => nodes::remove(&name),
+            NodeAction::Test { name } => nodes::test(&cfg, &name),
+            NodeAction::Remove { name } => nodes::remove(&cfg, &name),
         },
         Commands::Proto { action } => match action {
-            ProtoAction::Add { r#type, exit, port, force } => protocols::add(&r#type, &exit, &port, force),
+            ProtoAction::Add { r#type, exit, port, force } => protocols::add(&cfg, &r#type, &exit, &port, force),
             ProtoAction::List => protocols::list(&cfg),
         },
         Commands::Import { action } => match action {
-            ImportAction::Add { config_link, name, port, exit } => imports::add(&config_link, name, &port, exit),
+            ImportAction::Add { config_link, name, port, exit } => imports::add(&cfg, &config_link, name, &port, exit),
             ImportAction::List => imports::list(&cfg),
-            ImportAction::Remove { name } => imports::remove(&name),
+            ImportAction::Remove { name } => imports::remove(&cfg, &name),
             ImportAction::Test { name } => imports::test(&name),
         },
         Commands::Plan { action } => match action {
-            PlanAction::Create { name, data, duration, devices } => plans::create(&name, &data, &duration, devices),
+            PlanAction::Create { name, data, duration, devices } => plans::create(&cfg, &name, &data, &duration, devices),
             PlanAction::List => plans::list(&cfg),
-            PlanAction::Remove { name } => plans::remove(&name),
+            PlanAction::Remove { name } => plans::remove(&cfg, &name),
         },
         Commands::User { action } => match action {
             UserAction::Add { username, plan } => users::add(&db, &cfg, &username, &plan),
@@ -166,9 +181,13 @@ pub fn run() -> anyhow::Result<()> {
             let rt = tokio::runtime::Runtime::new()?;
             rt.block_on(web::start_web(&db, port, &path, password.as_deref()))
         }
-        Commands::Status => monitor::status(&db),
+        Commands::Tester { file, http, auto_add, prefix } => {
+            let rt = tokio::runtime::Runtime::new()?;
+            rt.block_on(tester::run_cli(file.as_deref(), http))
+        }
+        Commands::Status => monitor::status(&db, &cfg),
         Commands::Map => monitor::map(&cfg),
         Commands::Ports => monitor::ports(),
-        Commands::Enforce { dry_run } => enforcer::run(&db, dry_run),
+        Commands::Enforce { dry_run } => enforcer::run(&db, &cfg, dry_run),
     }
 }

@@ -2,6 +2,7 @@ use anyhow::Result;
 use colored::*;
 use crate::config::ConfigStore;
 use crate::db::Database;
+use crate::tester;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
@@ -53,7 +54,7 @@ pub async fn start_web(db: &Database, port: u16, path: &str, password: Option<&s
         let pw = pw.clone();
         let base = base.clone();
 
-        let mut buf = vec![0u8; 8192];
+        let mut buf = vec![0u8; 65536];
         let n = match stream.read(&mut buf).await {
             Ok(0) => continue,
             Ok(n) => n,
@@ -61,33 +62,28 @@ pub async fn start_web(db: &Database, port: u16, path: &str, password: Option<&s
         };
         let request = String::from_utf8_lossy(&buf[..n]);
 
-        // Parse method and path from request line
         let first_line = request.lines().next().unwrap_or("");
         let mut parts = first_line.split_whitespace();
-        let _method = parts.next().unwrap_or("GET");
+        let method = parts.next().unwrap_or("GET");
         let raw_uri = parts.next().unwrap_or("/");
 
-        // Strip base path to get the route
         let route = if base.is_empty() {
             raw_uri.to_string()
         } else if raw_uri.starts_with(&base) {
             let rest = &raw_uri[base.len()..];
             if rest.is_empty() { "/".to_string() } else { rest.to_string() }
         } else {
-            // Not under our base path
             let resp = format!("HTTP/1.1 404 Not Found\r\nContent-Length: 9\r\nConnection: close\r\n\r\nNot Found");
             let _ = stream.write_all(resp.as_bytes()).await;
             continue;
         };
 
-        // If accessing base without trailing slash, redirect
         if !base.is_empty() && raw_uri == base {
             let resp = format!("HTTP/1.1 302 Found\r\nLocation: {}/\r\nConnection: close\r\n\r\n", base);
             let _ = stream.write_all(resp.as_bytes()).await;
             continue;
         }
 
-        // Auth check (skip for login page and login API)
         let needs_auth = !route.starts_with("/api/login");
         if auth_required && needs_auth && !check_auth(&request, &pw) {
             let html = LOGIN_HTML.to_string();
@@ -96,7 +92,6 @@ pub async fn start_web(db: &Database, port: u16, path: &str, password: Option<&s
             continue;
         }
 
-        // Route
         let (status, ctype, body) = if route == "/" || route == "/index.html" {
             ("200 OK", "text/html", DASHBOARD_HTML.to_string())
         } else if route == "/api/status" {
@@ -125,6 +120,74 @@ pub async fn start_web(db: &Database, port: u16, path: &str, password: Option<&s
                 "web_port":port,"web_path":base,"auth_enabled":auth_required
             });
             ("200 OK", "application/json", data.to_string())
+
+        } else if route == "/api/tester" && method == "POST" {
+            // Bulk config testing
+            let body_str = request.find("\r\n\r\n").map(|pos| &request[pos + 4..]).unwrap_or("");
+            match serde_json::from_str::<serde_json::Value>(body_str) {
+                Ok(parsed) if parsed.get("configs").and_then(|c| c.as_str()).is_some() => {
+                    let configs_text = parsed["configs"].as_str().unwrap_or("");
+                    let do_http = parsed["http"].as_bool().unwrap_or(false);
+                    let configs = tester::parse_bulk_configs(configs_text);
+                    if configs.is_empty() {
+                        let err = serde_json::json!({"error": "No valid configs found", "results": []});
+                        ("200 OK", "application/json", err.to_string())
+                    } else {
+                        let results = tester::test_bulk(&configs, do_http, 10).await;
+                        let data = serde_json::json!({"results": results, "total": results.len(),
+                            "healthy": results.iter().filter(|r| r.status == "healthy" || r.status == "slow").count()});
+                        ("200 OK", "application/json", data.to_string())
+                    }
+                }
+                Ok(_) => {
+                    let err = serde_json::json!({"error": "Missing configs field"});
+                    ("400 Bad Request", "application/json", err.to_string())
+                }
+                Err(e) => {
+                    let err = serde_json::json!({"error": format!("Invalid JSON: {}", e)});
+                    ("400 Bad Request", "application/json", err.to_string())
+                }
+            }
+
+        } else if route == "/api/tester/add" && method == "POST" {
+            // Add selected configs to connection list
+            let body_str = request.find("\r\n\r\n").map(|pos| &request[pos + 4..]).unwrap_or("");
+            match serde_json::from_str::<serde_json::Value>(body_str) {
+                Ok(parsed) => {
+                    if let Some(conns) = parsed.get("connections").and_then(|c| c.as_array()) {
+                        let mut cfg = ConfigStore::load().unwrap_or_default();
+                        let mut added = 0;
+                        for conn in conns {
+                            let name = conn["name"].as_str().unwrap_or("");
+                            let uri = conn["uri"].as_str().unwrap_or("");
+                            let conn_type = conn["type"].as_str().unwrap_or("direct");
+                            if name.is_empty() || uri.is_empty() { continue; }
+                            if tester::parse_single_config(uri, 0).is_some() {
+                                cfg.imports.insert(name.to_string(), crate::config::ImportConfig {
+                                    name: name.to_string(),
+                                    source_type: conn_type.to_string(),
+                                    source_link: uri.to_string(),
+                                    local_port: 0,
+                                    local_socks_port: 0,
+                                    exit_node: None,
+                                });
+                                added += 1;
+                            }
+                        }
+                        let _ = cfg.save();
+                        let data = serde_json::json!({"added": added, "total": cfg.imports.len()});
+                        ("200 OK", "application/json", data.to_string())
+                    } else {
+                        let err = serde_json::json!({"error": "Missing connections field"});
+                        ("400 Bad Request", "application/json", err.to_string())
+                    }
+                }
+                Err(e) => {
+                    let err = serde_json::json!({"error": format!("Invalid JSON: {}", e)});
+                    ("400 Bad Request", "application/json", err.to_string())
+                }
+            }
+
         } else if route.starts_with("/api/link/") {
             let _username = &route[10..];
             let cfg = ConfigStore::load().unwrap_or_default();
@@ -133,12 +196,14 @@ pub async fn start_web(db: &Database, port: u16, path: &str, password: Option<&s
             let domain = cfg.vps.domain.as_deref().unwrap_or("");
             for (_, proto) in &cfg.protocols {
                 match proto.proto_type.as_str() {
-                    "vless" => links.push(format!(
-                        "vless://{}@{}:{}?encryption=none&security=tls&sni={}&fp=chrome&type=ws&host={}&path={}#{}",
-                        proto.uuid.as_deref().unwrap_or(""), ip, proto.port,
-                        proto.sni.as_deref().unwrap_or(domain), domain,
-                        pctenc(proto.ws_path.as_deref().unwrap_or("/")), proto.exit_node
-                    )),
+                    "vless" => {
+                        let sni = if !domain.is_empty() { domain } else { ip };
+                        links.push(format!(
+                            "vless://{}@{}:443?encryption=none&security=tls&sni={}&fp=chrome&type=ws&host={}&path={}#{}",
+                            proto.uuid.as_deref().unwrap_or(""), ip, sni, domain,
+                            pctenc(proto.ws_path.as_deref().unwrap_or("/")), proto.exit_node
+                        ));
+                    }
                     "mtproto" => links.push(format!(
                         "tg://proxy?server={}&port={}&secret={}",
                         ip, proto.port, proto.secret.as_deref().unwrap_or("")
@@ -147,8 +212,8 @@ pub async fn start_web(db: &Database, port: u16, path: &str, password: Option<&s
                 }
             }
             ("200 OK", "application/json", serde_json::json!({"links":links}).to_string())
+
         } else if route == "/api/login" {
-            // Handle login
             if let Some(body_start) = request.find("\r\n\r\n") {
                 let body_str = &request[body_start + 4..];
                 if body_str.contains(&format!("password={}", pw)) {
@@ -161,6 +226,7 @@ pub async fn start_web(db: &Database, port: u16, path: &str, password: Option<&s
                 }
             }
             ("401 Unauthorized", "application/json", "{\"ok\":false}".to_string())
+
         } else {
             ("404 Not Found", "text/plain", "Not Found".to_string())
         };

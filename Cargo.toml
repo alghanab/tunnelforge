@@ -34,6 +34,7 @@ toml = "0.8"
 dirs = "5"
 regex = "1"
 url = "2"
+futures = "0.3"
 
 [profile.release]
 opt-level = 3

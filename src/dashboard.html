@@ -208,6 +208,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
   .tabs{padding:12px 0}
   body{padding-bottom:40px}
 }
+
+/* Tester spinner */
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.tester-row{transition:background 0.15s}
+.tester-row:hover{background:var(--surface2)}
+.tester-row td{padding:8px 12px;border-bottom:1px solid var(--border)}
+.tester-row input[type="text"]{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);padding:4px 8px;font-size:0.72rem;width:140px;outline:none}
+.tester-row input[type="text"]:focus{border-color:var(--accent)}
+.add-row{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+.add-row:last-child{border-bottom:none}
 </style>
 </head>
 <body>
@@ -225,6 +235,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
   <div class="tab active" data-tab="overview">Overview</div>
   <div class="tab" data-tab="users">Users</div>
   <div class="tab" data-tab="connections">Connections</div>
+  <div class="tab" data-tab="tester">⚡ Tester</div>
   <div class="tab" data-tab="links">Links</div>
   <div class="tab" data-tab="settings">Settings</div>
 </div>
@@ -257,6 +268,80 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
     </div>
   </div>
 
+  <!-- TESTER -->
+  <div class="page" id="page-tester">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">⚡ Bulk Config Tester</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <label style="font-size:0.72rem;color:var(--dim);display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="checkbox" id="tester-http" style="accent-color:var(--accent)"> HTTP test
+          </label>
+        </div>
+      </div>
+      <div class="card-body">
+        <div style="margin-bottom:12px">
+          <textarea id="tester-input" placeholder="Paste proxy configs here (one per line)&#10;&#10;Supported formats:&#10;vless://uuid@server:port?...#name&#10;vmess://base64json&#10;trojan://password@server:port#name&#10;tg://proxy?server=...&port=...&secret=...&#10;server:port#name" 
+            style="width:100%;min-height:180px;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:monospace;font-size:0.78rem;resize:vertical;outline:none;line-height:1.6"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-primary" id="tester-run" onclick="runTester()">⚡ Test All</button>
+          <button class="btn btn-ghost" onclick="clearTester()">Clear</button>
+          <div id="tester-progress" style="font-size:0.72rem;color:var(--dim);display:none">
+            <span class="spinner" style="display:inline-block;width:12px;height:12px;border:2px solid var(--dim2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.6s linear infinite"></span>
+            Testing...
+          </div>
+          <div id="tester-summary" style="font-size:0.72rem;margin-left:auto"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div id="tester-results" style="display:none">
+      <div class="card" style="margin-top:12px">
+        <div class="card-header">
+          <div class="card-title">📊 Results</div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-sm btn-ghost" onclick="testerSelectAll()">Select All Healthy</button>
+            <button class="btn btn-sm btn-ghost" onclick="testerDeselectAll()">Deselect All</button>
+            <button class="btn btn-sm btn-primary" id="tester-add-btn" onclick="addSelectedConfigs()">➕ Add Selected</button>
+          </div>
+        </div>
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <table id="tester-table" style="width:100%;border-collapse:collapse;font-size:0.78rem">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border)">
+                <th style="padding:10px 12px;text-align:left;width:36px">
+                  <input type="checkbox" id="tester-check-all" onchange="toggleAllChecks(this)" style="accent-color:var(--accent)">
+                </th>
+                <th style="padding:10px 12px;text-align:left">Name</th>
+                <th style="padding:10px 12px;text-align:left">Type</th>
+                <th style="padding:10px 12px;text-align:left">Server</th>
+                <th style="padding:10px 12px;text-align:center">TCP</th>
+                <th style="padding:10px 12px;text-align:center">Latency</th>
+                <th style="padding:10px 12px;text-align:center">Status</th>
+                <th style="padding:10px 12px;text-align:left">Error</th>
+              </tr>
+            </thead>
+            <tbody id="tester-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Name & Add Section -->
+      <div class="card" style="margin-top:12px" id="tester-add-section" style="display:none">
+        <div class="card-header">
+          <div class="card-title">➕ Add to Connections</div>
+        </div>
+        <div class="card-body">
+          <p style="font-size:0.72rem;color:var(--dim);margin-bottom:12px">Selected configs will be added as imported connections. You can rename them below before adding.</p>
+          <div id="tester-add-list"></div>
+          <button class="btn btn-primary" style="margin-top:12px" onclick="confirmAddConfigs()">✓ Confirm Add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- LINKS -->
   <div class="page" id="page-links">
     <div id="links-container"></div>
@@ -281,6 +366,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
   <div class="nav-btn active" data-tab="overview"><span class="icon">📊</span>Home</div>
   <div class="nav-btn" data-tab="users"><span class="icon">👥</span>Users</div>
   <div class="nav-btn" data-tab="connections"><span class="icon">🌐</span>Network</div>
+  <div class="nav-btn" data-tab="tester"><span class="icon">⚡</span>Test</div>
   <div class="nav-btn" data-tab="links"><span class="icon">🔗</span>Links</div>
   <div class="nav-btn" data-tab="settings"><span class="icon">⚙</span>Settings</div>
 </div>
@@ -531,6 +617,187 @@ function copySub(username) {
   const protos = (plan?.protocols||[]).map(pn => (DATA.protocols||[]).find(p=>p.name===pn)).filter(Boolean);
   const links = protos.map(p => makeLink(p)).filter(Boolean);
   copyLink(btoa(links.join('\n')));
+}
+
+// ─── Tester ────────────────────────────────────
+let TESTER_RESULTS = [];
+
+async function runTester() {
+  const input = document.getElementById('tester-input').value.trim();
+  if (!input) { toast('Paste some configs first', 'error'); return; }
+
+  const doHttp = document.getElementById('tester-http').checked;
+  const progress = document.getElementById('tester-progress');
+  const runBtn = document.getElementById('tester-run');
+
+  progress.style.display = 'block';
+  runBtn.disabled = true;
+  runBtn.style.opacity = '0.5';
+  document.getElementById('tester-results').style.display = 'none';
+  document.getElementById('tester-summary').innerHTML = '';
+
+  try {
+    const r = await fetch(API + '/tester', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({configs: input, http: doHttp})
+    });
+
+    if (!r.ok) {
+      const err = await r.json();
+      throw new Error(err.error || 'Test failed');
+    }
+
+    const data = await r.json();
+    TESTER_RESULTS = data.results || [];
+
+    renderTesterResults();
+    document.getElementById('tester-results').style.display = 'block';
+
+    const healthy = TESTER_RESULTS.filter(r => r.status === 'healthy' || r.status === 'slow').length;
+    document.getElementById('tester-summary').innerHTML =
+      `<span style="color:var(--green)">${healthy} healthy</span> / ${TESTER_RESULTS.length} total`;
+
+    toast(`Tested ${TESTER_RESULTS.length} configs, ${healthy} healthy`);
+  } catch(e) {
+    toast(e.message, 'error');
+  } finally {
+    progress.style.display = 'none';
+    runBtn.disabled = false;
+    runBtn.style.opacity = '1';
+  }
+}
+
+function renderTesterResults() {
+  const tbody = document.getElementById('tester-tbody');
+  tbody.innerHTML = TESTER_RESULTS.map((r, i) => {
+    const statusColors = {healthy:'green', slow:'yellow', dead:'red'};
+    const statusColor = statusColors[r.status] || 'red';
+    const tcpIcon = r.tcp_ok ? '<span style="color:var(--green)">✓</span>' : '<span style="color:var(--red)">✗</span>';
+    const latency = r.tcp_ok ? r.tcp_latency_ms + 'ms' : '-';
+    const canCheck = r.status === 'healthy' || r.status === 'slow';
+
+    return `<tr class="tester-row">
+      <td><input type="checkbox" class="tester-check" data-idx="${i}" ${canCheck ? 'checked' : 'disabled'} style="accent-color:var(--accent)"></td>
+      <td><input type="text" class="tester-name" data-idx="${i}" value="${escHtml(r.name)}" title="Click to rename"></td>
+      <td>${badge(r.config_type, 'blue')}</td>
+      <td style="font-family:monospace;font-size:0.72rem">${escHtml(r.server)}:${r.port}</td>
+      <td style="text-align:center">${tcpIcon}</td>
+      <td style="text-align:center;font-family:monospace">${latency}</td>
+      <td style="text-align:center">${badge(r.status, statusColor)}</td>
+      <td style="font-size:0.68rem;color:var(--dim);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(r.error||'')}">${escHtml(r.error || '-')}</td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleAllChecks(el) {
+  document.querySelectorAll('.tester-check:not(:disabled)').forEach(cb => cb.checked = el.checked);
+}
+
+function testerSelectAll() {
+  document.querySelectorAll('.tester-check:not(:disabled)').forEach(cb => {
+    const idx = parseInt(cb.dataset.idx);
+    if (TESTER_RESULTS[idx] && (TESTER_RESULTS[idx].status === 'healthy' || TESTER_RESULTS[idx].status === 'slow')) {
+      cb.checked = true;
+    }
+  });
+  document.getElementById('tester-check-all').checked = true;
+}
+
+function testerDeselectAll() {
+  document.querySelectorAll('.tester-check').forEach(cb => cb.checked = false);
+  document.getElementById('tester-check-all').checked = false;
+}
+
+function clearTester() {
+  document.getElementById('tester-input').value = '';
+  document.getElementById('tester-results').style.display = 'none';
+  document.getElementById('tester-summary').innerHTML = '';
+  TESTER_RESULTS = [];
+}
+
+function addSelectedConfigs() {
+  const selected = [];
+  document.querySelectorAll('.tester-check:checked').forEach(cb => {
+    const idx = parseInt(cb.dataset.idx);
+    const nameInput = document.querySelector(`.tester-name[data-idx="${idx}"]`);
+    const r = TESTER_RESULTS[idx];
+    if (r) {
+      selected.push({
+        ...r,
+        custom_name: nameInput ? nameInput.value : r.name
+      });
+    }
+  });
+
+  if (!selected.length) { toast('Select at least one config', 'error'); return; }
+
+  // Show the add section with editable names
+  const section = document.getElementById('tester-add-section');
+  section.style.display = 'block';
+
+  const list = document.getElementById('tester-add-list');
+  list.innerHTML = selected.map((s, i) => `
+    <div class="add-row" data-uri="${escAttr(s.raw_uri)}" data-type="${s.config_type}">
+      <span style="font-size:0.72rem;color:var(--dim);min-width:20px">${i + 1}.</span>
+      <input type="text" class="add-name" value="${escHtml(s.custom_name)}" placeholder="Connection name" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);padding:6px 10px;font-size:0.78rem;outline:none">
+      <span style="font-size:0.72rem;color:var(--dim)">${badge(s.config_type, 'blue')}</span>
+      <span style="font-family:monospace;font-size:0.68rem;color:var(--dim)">${escHtml(s.server)}:${s.port}</span>
+      <span style="font-size:0.72rem">${badge(s.status, s.status === 'healthy' ? 'green' : s.status === 'slow' ? 'yellow' : 'red')}</span>
+    </div>
+  `).join('');
+
+  // Scroll to section
+  section.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+  toast(`${selected.length} configs ready to add`);
+}
+
+async function confirmAddConfigs() {
+  const rows = document.querySelectorAll('#tester-add-list .add-row');
+  const connections = [];
+
+  rows.forEach((row, i) => {
+    const nameInput = row.querySelector('.add-name');
+    connections.push({
+      name: nameInput.value.trim() || `import-${i+1}`,
+      uri: row.dataset.uri,
+      type: row.dataset.type
+    });
+  });
+
+  if (!connections.length) { toast('No configs to add', 'error'); return; }
+
+  try {
+    const r = await fetch(API + '/tester/add', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({connections})
+    });
+
+    if (!r.ok) {
+      const err = await r.json();
+      throw new Error(err.error || 'Failed to add');
+    }
+
+    const data = await r.json();
+    toast(`Added ${data.added} connections (${data.total} total)`);
+    document.getElementById('tester-add-section').style.display = 'none';
+
+    // Refresh data
+    load();
+  } catch(e) {
+    toast(e.message, 'error');
+  }
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function escAttr(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 // ─── Init ───────────────────────────────────────
