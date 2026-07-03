@@ -177,12 +177,27 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
 /* Action bar */
 .actions{display:flex;gap:8px;flex-wrap:wrap}
 
-/* Plan card */
-.plan-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px}
-.plan-name{font-size:0.88rem;font-weight:600;margin-bottom:8px}
-.plan-detail{display:flex;gap:16px;flex-wrap:wrap}
-.plan-detail span{font-size:0.72rem;color:var(--dim)}
-.plan-detail strong{color:var(--text)}
+/* Connection tags */
+.conn-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.conn-tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:0.65rem;font-weight:600;background:#6366f120;color:var(--accent2);white-space:nowrap}
+
+/* Connection checkboxes */
+.conn-checks{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.conn-check{display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:0.72rem;background:var(--bg);border:1px solid var(--border);cursor:pointer;transition:all 0.15s;user-select:none}
+.conn-check:hover{border-color:var(--accent)}
+.conn-check.checked{background:var(--accent-glow);border-color:var(--accent);color:var(--accent2)}
+.conn-check input{display:none}
+
+/* Edit user form */
+.edit-form{margin-top:12px;padding:14px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--radius-sm)}
+.edit-form label{font-size:0.72rem;color:var(--dim);display:block;margin-bottom:4px;margin-top:10px}
+.edit-form label:first-child{margin-top:0}
+.edit-form input,.edit-form select{width:100%;padding:7px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:0.78rem;outline:none}
+.edit-form input:focus,.edit-form select:focus{border-color:var(--accent)}
+
+/* Extend input */
+.extend-row{display:flex;gap:4px;align-items:center;margin-top:4px}
+.extend-row input{width:60px;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:0.72rem;text-align:center;outline:none}
 
 /* Service row */
 .svc-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:0.78rem}
@@ -352,13 +367,19 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
         </div>
       </div>
 
-      <!-- Name & Add Section -->
-      <div class="card" style="margin-top:12px" id="tester-add-section" style="display:none">
+      <!-- Name, Add & Assign Section -->
+      <div class="card" style="margin-top:12px;display:none" id="tester-add-section">
         <div class="card-header">
           <div class="card-title">➕ Add to Connections</div>
         </div>
         <div class="card-body">
           <p style="font-size:0.72rem;color:var(--dim);margin-bottom:12px">Selected configs will be added as imported connections. You can rename them below before adding.</p>
+          <div style="margin-bottom:12px">
+            <div style="font-size:0.72rem;color:var(--dim);margin-bottom:4px">Assign to User (optional)</div>
+            <select id="tester-assign-user" style="padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:0.78rem;outline:none">
+              <option value="">— Don't assign —</option>
+            </select>
+          </div>
           <div id="tester-add-list"></div>
           <button class="btn btn-primary" style="margin-top:12px" onclick="confirmAddConfigs()">✓ Confirm Add</button>
         </div>
@@ -376,14 +397,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
     <div class="card">
       <div class="card-header"><div class="card-title">🛠 Configuration</div></div>
       <div class="card-body" id="settings-container"></div>
-    </div>
-    <div class="card" style="margin-top:12px">
-      <div class="card-header">
-        <div class="card-title">📋 Plans</div>
-        <button class="btn btn-primary btn-sm" onclick="toggleAddPlanForm()">➕ Add Plan</button>
-      </div>
-      <div class="card-body" id="add-plan-form-container" style="display:none"></div>
-      <div class="card-body" id="plans-container"></div>
     </div>
     <div class="card" style="margin-top:12px">
       <div class="card-header"><div class="card-title">⚙️ Services</div></div>
@@ -460,12 +473,18 @@ function makeLink(proto) {
   return '';
 }
 
+function getAllConnectionNames() {
+  const names = [];
+  (DATA.imports || []).forEach(i => names.push(i.name));
+  (DATA.protocols || []).forEach(p => names.push(p.name));
+  return names;
+}
+
 // ─── Render ─────────────────────────────────────
 function render() {
   const nodes = DATA.nodes || [];
   const protos = DATA.protocols || [];
   const users = DATA.users || [];
-  const plans = DATA.plans || [];
   const activeUsers = users.filter(u => u.status === 'active').length;
   const activeNodes = nodes.filter(n => n.active).length;
 
@@ -474,7 +493,7 @@ function render() {
     <div class="stat"><div class="stat-label">Exit Nodes</div><div class="stat-value">${nodes.length}</div><div class="stat-sub">${activeNodes} active</div></div>
     <div class="stat"><div class="stat-label">Protocols</div><div class="stat-value">${protos.length}</div><div class="stat-sub">${[...new Set(protos.map(p=>p.type))].join(', ')}</div></div>
     <div class="stat"><div class="stat-label">Users</div><div class="stat-value">${users.length}</div><div class="stat-sub">${activeUsers} active</div></div>
-    <div class="stat"><div class="stat-label">Plans</div><div class="stat-value">${plans.length}</div><div class="stat-sub">${plans.map(p=>p.name).join(', ')}</div></div>
+    <div class="stat"><div class="stat-label">Imports</div><div class="stat-value">${(DATA.imports||[]).length}</div><div class="stat-sub">${(DATA.imports||[]).map(i=>i.name).slice(0,3).join(', ')}${(DATA.imports||[]).length>3?'...':''}</div></div>
   `;
 
   // Flow
@@ -493,7 +512,7 @@ function render() {
   }).join('') || '<div class="empty"><div class="empty-icon">📡</div><div class="empty-title">No connections yet</div><div class="empty-desc">Add exit nodes and protocols to get started</div></div>';
 
   // Users
-  renderUsers(users, plans, protos);
+  renderUsers(users, protos);
 
   // Imports/Connections
   renderImports(DATA.imports || []);
@@ -530,12 +549,21 @@ function render() {
   renderLinks();
 
   // Settings
-  renderSettings(nodes, protos, users, plans);
-  renderPlans(plans);
+  renderSettings(nodes, protos, users);
+
+  // Update tester assign-user dropdown
+  const testerSel = document.getElementById('tester-assign-user');
+  if (testerSel) {
+    const curVal = testerSel.value;
+    testerSel.innerHTML = '<option value="">— Don\'t assign —</option>' +
+      (DATA.users||[]).map(u => `<option value="${escHtml(u.username)}">${escHtml(u.username)}</option>`).join('');
+    testerSel.value = curVal;
+  }
 }
 
-function renderUsers(users, plans, protos) {
+function renderUsers(users, protos) {
   const container = document.getElementById('users-container');
+  const allConnections = getAllConnectionNames();
 
   // Render add-user form
   const addForm = document.getElementById('add-user-form');
@@ -543,25 +571,41 @@ function renderUsers(users, plans, protos) {
     <div class="card">
       <div class="card-header"><div class="card-title">➕ New User</div></div>
       <div class="card-body">
+        <div style="display:flex;flex-direction:column;gap:10px">
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end">
           <div style="flex:1;min-width:160px">
             <div style="font-size:0.72rem;color:var(--dim);margin-bottom:4px">Username</div>
             <input type="text" id="new-user-name" placeholder="username" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:0.82rem;outline:none">
           </div>
-          <div style="flex:1;min-width:160px">
-            <div style="font-size:0.72rem;color:var(--dim);margin-bottom:4px">Plan</div>
-            <select id="new-user-plan" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:0.82rem;outline:none">
-              ${plans.map(p => `<option value="${escHtml(p.name)}">${escHtml(p.name)}</option>`).join('')}
-            </select>
+          <div style="flex:1;min-width:120px">
+            <div style="font-size:0.72rem;color:var(--dim);margin-bottom:4px">Data Limit</div>
+            <input type="text" id="new-user-data" placeholder="50GB" value="50GB" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:0.82rem;outline:none">
           </div>
+          <div style="min-width:80px">
+            <div style="font-size:0.72rem;color:var(--dim);margin-bottom:4px">Max IPs</div>
+            <input type="number" id="new-user-maxips" value="2" min="1" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:0.82rem;outline:none">
+          </div>
+          <div style="min-width:100px">
+            <div style="font-size:0.72rem;color:var(--dim);margin-bottom:4px">Duration (hours)</div>
+            <input type="number" id="new-user-hours" value="720" min="1" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:0.82rem;outline:none">
+          </div>
+        </div>
+        <div>
+          <div style="font-size:0.72rem;color:var(--dim);margin-bottom:6px">Connections</div>
+          <div class="conn-checks" id="new-user-conn-checks">
+            ${allConnections.map(c => `<label class="conn-check" onclick="this.classList.toggle('checked')"><input type="checkbox" value="${escHtml(c)}"> ${escHtml(c)}</label>`).join('')}
+            ${!allConnections.length ? '<span style="font-size:0.72rem;color:var(--dim)">No connections available</span>' : ''}
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
           <button class="btn btn-primary" onclick="createUser()">Create</button>
           <button class="btn btn-ghost" onclick="document.getElementById('add-user-form').style.display='none'">Cancel</button>
         </div>
-      </div>
-    </div>`;
+        </div>
+      </div>`;
 
   if (!users.length) {
-    container.innerHTML = '<div class="empty"><div class="empty-icon">👥</div><div class="empty-title">No users yet</div><div class="empty-desc">Create a plan and add users to generate shareable links</div></div>';
+    container.innerHTML = '<div class="empty"><div class="empty-icon">👥</div><div class="empty-title">No users yet</div><div class="empty-desc">Create a user and assign connections to get started</div></div>';
     return;
   }
 
@@ -569,15 +613,20 @@ function renderUsers(users, plans, protos) {
     const used = pct(u.data_used, u.data_limit);
     const days = daysLeft(u.expires);
     const fillClass = used < 60 ? 'low' : used < 85 ? 'mid' : 'high';
-    const plan = plans.find(p => p.name === u.plan);
-    const userProtos = plan?.protocols?.map(pn => protos.find(p => p.name === pn)).filter(Boolean) || [];
+    const userConns = (u.connections || '').split(',').map(s => s.trim()).filter(Boolean);
+    const userProtos = userConns.map(cn => protos.find(p => p.name === cn)).filter(Boolean);
     const isActive = u.status === 'active';
+    const expiresDate = u.expires ? new Date(u.expires) : null;
+    const createdStr = u.created_at ? u.created_at.substring(0,10) : '-';
 
     return `<div class="user-card" id="user-${u.username}">
       <div class="user-header" onclick="this.parentElement.classList.toggle('open')">
         <div class="user-info">
           <div class="user-avatar">${u.username.charAt(0).toUpperCase()}</div>
-          <div><div class="user-name">${escHtml(u.username)}</div><div class="user-plan">${escHtml(u.plan||'')} · ${days}d left${u.created_at ? ' · Created '+u.created_at.substring(0,10) : ''}</div></div>
+          <div>
+            <div class="user-name">${escHtml(u.username)} ${isActive ? badge('Active','green') : badge(u.status||'suspended','red')}</div>
+            <div style="font-size:0.72rem;color:var(--dim)">${days}d left · Max ${u.max_ips||'-'} IPs · Created ${createdStr}</div>
+          </div>
         </div>
         <div class="user-right">
           <div class="user-status ${u.status}"></div>
@@ -591,11 +640,11 @@ function renderUsers(users, plans, protos) {
         </div>
         <div class="info-grid">
           <div class="info-item"><div class="info-label">Status</div><div class="info-value">${isActive ? badge('Active','green') : badge(u.status||'unknown','red')}</div></div>
-          <div class="info-item"><div class="info-label">Expires</div><div class="info-value">${u.expires?.substring(0,10)||'-'}</div></div>
-          <div class="info-item"><div class="info-label">Max Devices</div><div class="info-value">${plan?.max_devices||'-'}</div></div>
-          <div class="info-item"><div class="info-label">Duration</div><div class="info-value">${plan?.duration||'-'}</div></div>
-          ${u.created_at ? `<div class="info-item"><div class="info-label">Created</div><div class="info-value">${u.created_at.substring(0,10)}</div></div>` : ''}
+          <div class="info-item"><div class="info-label">Expires</div><div class="info-value">${expiresDate ? expiresDate.toISOString().substring(0,10) : '-'}</div></div>
+          <div class="info-item"><div class="info-label">Max IPs</div><div class="info-value">${u.max_ips || '-'}</div></div>
+          <div class="info-item"><div class="info-label">Created</div><div class="info-value">${createdStr}</div></div>
         </div>
+        ${userConns.length ? `<div class="conn-tags">${userConns.map(c => `<span class="conn-tag">${escHtml(c)}</span>`).join('')}</div>` : '<div style="font-size:0.72rem;color:var(--dim);padding:4px 0">No connections assigned</div>'}
         <div class="links-section">
           <div class="links-title">Connection Links</div>
           ${userProtos.map(p => {
@@ -606,15 +655,20 @@ function renderUsers(users, plans, protos) {
               <div class="link-info"><div class="link-type">${p.type.toUpperCase()} — ${p.name}</div><div class="link-detail">${p.type==='mtproto'?`Port ${p.secret?.slice(-8)||''}...`:`:${p.port} ${p.ws_path||''}`}</div></div>
               <div class="link-copy">copy</div>
             </div>`;
-          }).join('') || '<div style="color:var(--dim);font-size:0.78rem;padding:8px 0">No protocols in plan</div>'}
+          }).join('') || '<div style="color:var(--dim);font-size:0.78rem;padding:8px 0">No protocols in assigned connections</div>'}
         </div>
+        <div id="edit-form-${u.username}" class="edit-form" style="display:none"></div>
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-sm btn-ghost" onclick="copyAllLinks('${escHtml(u.username)}')">📋 Copy All Links</button>
-          <button class="btn btn-sm btn-ghost" onclick="copySub('${escHtml(u.username)}')">🔗 Copy Sub URL</button>
-          <button class="btn btn-sm ${isActive?'btn-ghost':'btn-primary'}" onclick="toggleUser('${escHtml(u.username)}','${isActive?'disable':'enable'}')">${isActive?'⏸ Disable':'▶ Enable'}</button>
-          <button class="btn btn-sm btn-ghost" onclick="resetUserData('${escHtml(u.username)}')">🔄 Reset Data</button>
-          <button class="btn btn-sm btn-ghost" onclick="extendUser('${escHtml(u.username)}')">📅 Extend 30d</button>
-          <button class="btn btn-sm" style="background:var(--red-glow);color:var(--red)" onclick="deleteUser('${escHtml(u.username)}')">🗑 Delete</button>
+          <button class="btn btn-sm btn-ghost" onclick="toggleEditUser('${escAttr(u.username)}')">✏️ Edit</button>
+          <button class="btn btn-sm btn-ghost" onclick="copyAllLinks('${escAttr(u.username)}')">📋 Copy All Links</button>
+          <button class="btn btn-sm btn-ghost" onclick="copySub('${escAttr(u.username)}')">🔗 Copy Sub URL</button>
+          <button class="btn btn-sm ${isActive?'btn-ghost':'btn-primary'}" onclick="toggleUser('${escAttr(u.username)}','${isActive?'disable':'enable'}')">${isActive?'⏸ Disable':'▶ Enable'}</button>
+          <button class="btn btn-sm btn-ghost" onclick="resetUserData('${escAttr(u.username)}')">🔄 Reset Data</button>
+          <div class="extend-row">
+            <input type="number" id="extend-hours-${u.username}" value="720" min="1" placeholder="hours">
+            <button class="btn btn-sm btn-ghost" onclick="extendUser('${escAttr(u.username)}')">📅 Extend</button>
+          </div>
+          <button class="btn btn-sm" style="background:var(--red-glow);color:var(--red)" onclick="deleteUser('${escAttr(u.username)}')">🗑 Delete</button>
         </div>
       </div>
     </div>`;
@@ -627,8 +681,8 @@ function renderLinks() {
   const container = document.getElementById('links-container');
 
   container.innerHTML = users.map(u => {
-    const plan = (DATA.plans||[]).find(p => p.name === u.plan);
-    const userProtos = plan?.protocols?.map(pn => protos.find(p => p.name === pn)).filter(Boolean) || [];
+    const userConns = (u.connections || '').split(',').map(s => s.trim()).filter(Boolean);
+    const userProtos = userConns.map(cn => protos.find(p => p.name === cn)).filter(Boolean);
     if (!userProtos.length) return '';
 
     const allLinks = userProtos.map(p => makeLink(p)).filter(Boolean);
@@ -653,10 +707,10 @@ function renderLinks() {
         }).join('')}
       </div>
     </div>`;
-  }).filter(Boolean).join('') || '<div class="empty"><div class="empty-icon">🔗</div><div class="empty-title">No links available</div><div class="empty-desc">Add users with plans that include protocols</div></div>';
+  }).filter(Boolean).join('') || '<div class="empty"><div class="empty-icon">🔗</div><div class="empty-title">No links available</div><div class="empty-desc">Add users and assign connections to generate links</div></div>';
 }
 
-function renderSettings(nodes, protos, users, plans) {
+function renderSettings(nodes, protos, users) {
   document.getElementById('settings-container').innerHTML = `
     <div class="setting">
       <span class="setting-key">VPS IP</span>
@@ -685,15 +739,17 @@ function renderSettings(nodes, protos, users, plans) {
 }
 
 function copyAllLinks(username) {
-  const plan = (DATA.plans||[]).find(p => p.name === (DATA.users||[]).find(u=>u.username===username)?.plan);
-  const protos = (plan?.protocols||[]).map(pn => (DATA.protocols||[]).find(p=>p.name===pn)).filter(Boolean);
+  const u = (DATA.users||[]).find(u=>u.username===username);
+  const userConns = (u?.connections || '').split(',').map(s => s.trim()).filter(Boolean);
+  const protos = userConns.map(cn => (DATA.protocols||[]).find(p=>p.name===cn)).filter(Boolean);
   const links = protos.map(p => makeLink(p)).filter(Boolean);
   copyLink(links.join('\n'));
 }
 
 function copySub(username) {
-  const plan = (DATA.plans||[]).find(p => p.name === (DATA.users||[]).find(u=>u.username===username)?.plan);
-  const protos = (plan?.protocols||[]).map(pn => (DATA.protocols||[]).find(p=>p.name===pn)).filter(Boolean);
+  const u = (DATA.users||[]).find(u=>u.username===username);
+  const userConns = (u?.connections || '').split(',').map(s => s.trim()).filter(Boolean);
+  const protos = userConns.map(cn => (DATA.protocols||[]).find(p=>p.name===cn)).filter(Boolean);
   const links = protos.map(p => makeLink(p)).filter(Boolean);
   copyLink(btoa(links.join('\n')));
 }
@@ -817,6 +873,13 @@ function addSelectedConfigs() {
   const section = document.getElementById('tester-add-section');
   section.style.display = 'block';
 
+  // Update assign-user dropdown
+  const testerSel = document.getElementById('tester-assign-user');
+  if (testerSel) {
+    testerSel.innerHTML = '<option value="">— Don\'t assign —</option>' +
+      (DATA.users||[]).map(u => `<option value="${escHtml(u.username)}">${escHtml(u.username)}</option>`).join('');
+  }
+
   const list = document.getElementById('tester-add-list');
   list.innerHTML = selected.map((s, i) => `
     <div class="add-row" data-uri="${escAttr(s.raw_uri)}" data-type="${s.config_type}">
@@ -848,6 +911,8 @@ async function confirmAddConfigs() {
 
   if (!connections.length) { toast('No configs to add', 'error'); return; }
 
+  const assignUser = document.getElementById('tester-assign-user')?.value || '';
+
   try {
     const r = await fetch(API + '/tester/add', {
       method: 'POST',
@@ -863,6 +928,24 @@ async function confirmAddConfigs() {
     const data = await r.json();
     toast(`Added ${data.added} connections (${data.total} total)`);
     document.getElementById('tester-add-section').style.display = 'none';
+
+    // If assign to user, update that user's connections
+    if (assignUser) {
+      const newConnNames = connections.map(c => c.name);
+      const u = (DATA.users || []).find(u => u.username === assignUser);
+      if (u) {
+        const existing = (u.connections || '').split(',').map(s => s.trim()).filter(Boolean);
+        const merged = [...new Set([...existing, ...newConnNames])].join(',');
+        try {
+          const ur = await fetch(API + '/users/' + encodeURIComponent(assignUser), {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({connections: merged})
+          });
+          if (ur.ok) toast('Assigned to ' + assignUser);
+        } catch(e2) { /* silent */ }
+      }
+    }
 
     // Refresh data
     load();
@@ -907,11 +990,14 @@ function toggleAddUserForm() {
 
 async function createUser() {
   const username = document.getElementById('new-user-name')?.value.trim();
-  const plan = document.getElementById('new-user-plan')?.value;
+  const data_limit = document.getElementById('new-user-data')?.value.trim() || '50GB';
+  const max_ips = parseInt(document.getElementById('new-user-maxips')?.value) || 2;
+  const duration_hours = parseInt(document.getElementById('new-user-hours')?.value) || 720;
+  const checksEl = document.getElementById('new-user-conn-checks');
+  const connections = checksEl ? [...checksEl.querySelectorAll('input:checked')].map(cb => cb.value).join(',') : '';
   if (!username) { toast('Username required', 'error'); return; }
-  if (!plan) { toast('No plans available — create a plan first', 'error'); return; }
   try {
-    const r = await fetch(API + '/users', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username, plan}) });
+    const r = await fetch(API + '/users', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username, data_limit, max_ips, duration_hours, connections}) });
     if (!r.ok) { const e = await r.json(); throw new Error(e.error||'Failed'); }
     toast('User created'); document.getElementById('add-user-form').style.display='none'; load();
   } catch(e) { toast(e.message, 'error'); }
@@ -935,10 +1021,11 @@ async function resetUserData(username) {
 }
 
 async function extendUser(username) {
+  const hours = parseInt(document.getElementById('extend-hours-' + username)?.value) || 720;
   try {
-    const r = await fetch(API + '/users/' + encodeURIComponent(username), { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'extend', days:30}) });
+    const r = await fetch(API + '/users/' + encodeURIComponent(username), { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({duration_hours: hours}) });
     if (!r.ok) { const e = await r.json(); throw new Error(e.error||'Failed'); }
-    toast('Extended by 30 days'); load();
+    toast('Extended by ' + hours + ' hours'); load();
   } catch(e) { toast(e.message, 'error'); }
 }
 
@@ -948,6 +1035,62 @@ async function deleteUser(username) {
     const r = await fetch(API + '/users/' + encodeURIComponent(username), { method:'DELETE' });
     if (!r.ok) { const e = await r.json(); throw new Error(e.error||'Failed'); }
     toast('User deleted'); load();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function toggleEditUser(username) {
+  const formEl = document.getElementById('edit-form-' + username);
+  if (!formEl) return;
+  if (formEl.style.display !== 'none') {
+    formEl.style.display = 'none';
+    return;
+  }
+  const u = (DATA.users || []).find(u => u.username === username);
+  if (!u) return;
+  const allConnections = getAllConnectionNames();
+  const userConns = (u.connections || '').split(',').map(s => s.trim()).filter(Boolean);
+  formEl.style.display = 'block';
+  formEl.innerHTML = `
+    <div style="font-size:0.78rem;font-weight:600;margin-bottom:10px">Edit: ${escHtml(username)}</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:100px">
+        <label>Data Limit</label>
+        <input type="text" id="edit-data-${username}" value="${escHtml(u.data_limit || '')}">
+      </div>
+      <div style="min-width:80px">
+        <label>Max IPs</label>
+        <input type="number" id="edit-maxips-${username}" value="${u.max_ips || 2}" min="1">
+      </div>
+      <div style="min-width:100px">
+        <label>Duration (hours)</label>
+        <input type="number" id="edit-hours-${username}" value="720" min="1" placeholder="hours to add">
+      </div>
+    </div>
+    <label>Connections</label>
+    <div class="conn-checks" id="edit-conn-checks-${username}">
+      ${allConnections.map(c => `<label class="conn-check ${userConns.includes(c)?'checked':''}" onclick="this.classList.toggle('checked')"><input type="checkbox" value="${escHtml(c)}" ${userConns.includes(c)?'checked':''}> ${escHtml(c)}</label>`).join('')}
+      ${!allConnections.length ? '<span style="font-size:0.72rem;color:var(--dim)">No connections available</span>' : ''}
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-primary btn-sm" onclick="saveUser('${escAttr(username)}')">Save</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('edit-form-${username}').style.display='none'">Cancel</button>
+    </div>
+  `;
+  formEl.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+async function saveUser(username) {
+  const data_limit = document.getElementById('edit-data-' + username)?.value.trim();
+  const max_ips = parseInt(document.getElementById('edit-maxips-' + username)?.value) || 2;
+  const duration_hours = parseInt(document.getElementById('edit-hours-' + username)?.value) || 0;
+  const checksEl = document.getElementById('edit-conn-checks-' + username);
+  const connections = checksEl ? [...checksEl.querySelectorAll('input:checked')].map(cb => cb.value).join(',') : '';
+  const body = { data_limit, max_ips, connections };
+  if (duration_hours > 0) body.duration_hours = duration_hours;
+  try {
+    const r = await fetch(API + '/users/' + encodeURIComponent(username), { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.error||'Failed'); }
+    toast('User updated'); load();
   } catch(e) { toast(e.message, 'error'); }
 }
 
@@ -1087,85 +1230,6 @@ async function saveConfig() {
     const r = await fetch(API + '/config', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({vps_ip, vps_domain}) });
     if (!r.ok) { const e = await r.json(); throw new Error(e.error||'Failed'); }
     toast('Config saved'); load();
-  } catch(e) { toast(e.message, 'error'); }
-}
-
-// ─── Plans CRUD ────────────────────────────────
-function renderPlans(plans) {
-  const container = document.getElementById('plans-container');
-  if (!plans.length) {
-    container.innerHTML = '<div style="color:var(--dim);font-size:0.78rem;padding:12px 0;text-align:center">No plans yet</div>';
-    return;
-  }
-  container.innerHTML = plans.map(p => `
-    <div class="plan-card" style="display:flex;justify-content:space-between;align-items:start">
-      <div>
-        <div class="plan-name">${escHtml(p.name)}</div>
-        <div class="plan-detail">
-          <span>Data: <strong>${escHtml(p.data_limit||'unlimited')}</strong></span>
-          <span>Duration: <strong>${escHtml(p.duration||'-')}</strong></span>
-          <span>Devices: <strong>${p.max_devices||'-'}</strong></span>
-          ${p.protocols?.length ? '<span>Protos: <strong>'+escHtml(p.protocols.join(', '))+'</strong></span>' : ''}
-        </div>
-      </div>
-      <button class="btn btn-sm" style="background:var(--red-glow);color:var(--red);flex-shrink:0" onclick="deletePlan('${escHtml(p.name)}')">🗑</button>
-    </div>
-  `).join('');
-}
-
-function toggleAddPlanForm() {
-  const c = document.getElementById('add-plan-form-container');
-  if (c.style.display === 'none') {
-    c.style.display = 'block';
-    c.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <div style="flex:1;min-width:120px">
-            <div style="font-size:0.72rem;color:var(--dim);margin-bottom:4px">Name</div>
-            <input type="text" id="new-plan-name" placeholder="plan name" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:0.82rem;outline:none">
-          </div>
-          <div style="flex:1;min-width:100px">
-            <div style="font-size:0.72rem;color:var(--dim);margin-bottom:4px">Data Limit</div>
-            <input type="text" id="new-plan-data" placeholder="50GB" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:0.82rem;outline:none">
-          </div>
-          <div style="flex:1;min-width:80px">
-            <div style="font-size:0.72rem;color:var(--dim);margin-bottom:4px">Duration</div>
-            <input type="text" id="new-plan-duration" placeholder="30d" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:0.82rem;outline:none">
-          </div>
-          <div style="min-width:80px">
-            <div style="font-size:0.72rem;color:var(--dim);margin-bottom:4px">Max Devices</div>
-            <input type="number" id="new-plan-devices" value="2" min="1" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:0.82rem;outline:none">
-          </div>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-primary" onclick="createPlan()">Create Plan</button>
-          <button class="btn btn-ghost" onclick="document.getElementById('add-plan-form-container').style.display='none'">Cancel</button>
-        </div>
-      </div>`;
-  } else {
-    c.style.display = 'none';
-  }
-}
-
-async function createPlan() {
-  const name = document.getElementById('new-plan-name')?.value.trim();
-  const data_limit = document.getElementById('new-plan-data')?.value.trim();
-  const duration = document.getElementById('new-plan-duration')?.value.trim();
-  const max_devices = parseInt(document.getElementById('new-plan-devices')?.value) || 2;
-  if (!name) { toast('Plan name required', 'error'); return; }
-  try {
-    const r = await fetch(API + '/plans', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, data_limit: data_limit||'0', duration: duration||'0', max_devices, protocols:[]}) });
-    if (!r.ok) { const e = await r.json(); throw new Error(e.error||'Failed'); }
-    toast('Plan created'); document.getElementById('add-plan-form-container').style.display='none'; load();
-  } catch(e) { toast(e.message, 'error'); }
-}
-
-async function deletePlan(name) {
-  if (!confirm('Delete plan "' + name + '"? Users on this plan will be affected.')) return;
-  try {
-    const r = await fetch(API + '/plans/' + encodeURIComponent(name), { method:'DELETE' });
-    if (!r.ok) { const e = await r.json(); throw new Error(e.error||'Failed'); }
-    toast('Plan deleted'); load();
   } catch(e) { toast(e.message, 'error'); }
 }
 

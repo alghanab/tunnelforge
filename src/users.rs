@@ -1,32 +1,33 @@
 use anyhow::Result;
 use colored::*;
-use crate::config::ConfigStore;
 use crate::db::Database;
 
-pub fn add(db: &Database, cfg: &ConfigStore, username: &str, plan: &str) -> Result<()> {
-    let plan_cfg = cfg.plans.get(plan).ok_or_else(|| anyhow::anyhow!("Plan '{}' not found", plan))?;
-    let data_bytes = parse_data(&plan_cfg.data_limit);
-    let days = parse_duration(&plan_cfg.duration);
-    let id = db.add_user(username, plan, data_bytes, plan_cfg.max_devices as i64, days)?;
-    println!("{} User '{}' created (plan: {}, data: {}, devices: {}, days: {})", "✓".green(), username, plan, plan_cfg.data_limit, plan_cfg.max_devices, days);
+pub fn add(db: &Database, username: &str, data: &str, max_ips: i64, hours: i64, connections: &str) -> Result<()> {
+    let data_bytes = parse_data(data);
+    let _id = db.add_user(username, data_bytes, max_ips, hours, connections)?;
+    println!("{} User '{}' created (data: {}, IPs: {}, hours: {}, connections: {})",
+        "✓".green(), username, data, max_ips, hours, if connections.is_empty() { "none" } else { connections });
     Ok(())
 }
 
 pub fn list(db: &Database) -> Result<()> {
     let users = db.list_users()?;
     if users.is_empty() { println!("No users."); return Ok(()); }
-    println!("{:<12} {:<14} {:<10} {:<12} {:<12} {}", "USERNAME", "PLAN", "STATUS", "DATA USED", "LIMIT", "EXPIRES");
-    println!("{}", "-".repeat(74));
+    println!("{:<12} {:<10} {:<8} {:<10} {:<8} {:<20} {}", "USERNAME", "STATUS", "DATA", "LIMIT", "MAX_IPS", "CONNECTIONS", "EXPIRES");
+    println!("{}", "-".repeat(90));
     for u in &users {
         let st = match u.status.as_str() { "active" => "active".green().to_string(), "suspended" => "suspended".red().to_string(), _ => u.status.clone() };
-        println!("{:<12} {:<14} {:<10} {:<12} {:<12} {}", u.username, u.plan, st, fmt_b(u.data_used_bytes), fmt_b(u.data_limit_bytes), &u.expires_at[..10]);
+        let conns = if u.connections.len() > 20 { format!("{}...", &u.connections[..17]) } else { u.connections.clone() };
+        println!("{:<12} {:<10} {:<8} {:<10} {:<8} {:<20} {}", u.username, st, fmt_b(u.data_used_bytes), fmt_b(u.data_limit_bytes), u.max_devices, conns, &u.expires_at[..10]);
     }
     Ok(())
 }
 
 pub fn show(db: &Database, username: &str) -> Result<()> {
     let u = db.get_user(username)?.ok_or_else(|| anyhow::anyhow!("User not found"))?;
-    println!("User: {}\n  Plan: {}\n  Status: {}\n  Data: {} / {}\n  Expires: {}", u.username, u.plan, u.status, fmt_b(u.data_used_bytes), fmt_b(u.data_limit_bytes), u.expires_at);
+    println!("User: {}\n  Status: {}\n  Data: {} / {}\n  Max IPs: {}\n  Connections: {}\n  Expires: {}",
+        u.username, u.status, fmt_b(u.data_used_bytes), fmt_b(u.data_limit_bytes), u.max_devices,
+        if u.connections.is_empty() { "none".to_string() } else { u.connections.clone() }, u.expires_at);
     Ok(())
 }
 
@@ -36,8 +37,8 @@ pub fn set_status(db: &Database, username: &str, status: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn reset(db: &Database, username: &str, days: Option<u32>, reset_data: bool) -> Result<()> {
-    if let Some(d) = days { db.extend_expiry(username, d as i64)?; println!("{} Extended {} by {}d", "✓".green(), username, d); }
+pub fn reset(db: &Database, username: &str, hours: Option<u32>, reset_data: bool) -> Result<()> {
+    if let Some(h) = hours { db.extend_expiry(username, h as i64)?; println!("{} Extended {} by {}h", "✓".green(), username, h); }
     if reset_data { db.reset_data(username)?; println!("{} Reset data for {}", "✓".green(), username); }
     Ok(())
 }
@@ -48,13 +49,6 @@ fn parse_data(s: &str) -> i64 {
     else if s.ends_with("MB") { (s[..s.len()-2].trim().parse::<f64>().unwrap_or(0.0) * 1048576.0) as i64 }
     else if s.ends_with("KB") { (s[..s.len()-2].trim().parse::<f64>().unwrap_or(0.0) * 1024.0) as i64 }
     else { s.parse::<i64>().unwrap_or(0) }
-}
-
-fn parse_duration(s: &str) -> i64 {
-    let s = s.trim().to_lowercase();
-    if s.ends_with('d') { s[..s.len()-1].parse().unwrap_or(30) }
-    else if s.ends_with('m') { s[..s.len()-1].parse::<i64>().unwrap_or(1) * 30 }
-    else { s.parse().unwrap_or(30) }
 }
 
 fn fmt_b(b: i64) -> String {

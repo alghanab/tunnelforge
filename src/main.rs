@@ -13,6 +13,7 @@ mod service;
 mod web;
 mod sub;
 mod tester;
+mod live;
 
 fn main() -> anyhow::Result<()> {
     cli::run()

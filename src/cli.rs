@@ -104,7 +104,17 @@ pub enum PlanAction {
 
 #[derive(Subcommand)]
 pub enum UserAction {
-    Add { username: String, #[arg(long)] plan: String },
+    Add {
+        username: String,
+        #[arg(long, default_value = "50GB")]
+        data: String,
+        #[arg(long, default_value = "2")]
+        max_ips: i64,
+        #[arg(long, default_value = "720")]
+        hours: i64,
+        #[arg(long, default_value = "")]
+        connections: String,
+    },
     List,
     Show { username: String },
     Disable { username: String },
@@ -159,7 +169,9 @@ pub fn run() -> anyhow::Result<()> {
             PlanAction::Remove { name } => plans::remove(&cfg, &name),
         },
         Commands::User { action } => match action {
-            UserAction::Add { username, plan } => users::add(&db, &cfg, &username, &plan),
+            UserAction::Add { username, data, max_ips, hours, connections } => {
+                users::add(&db, &username, &data, max_ips, hours, &connections)
+            }
             UserAction::List => users::list(&db),
             UserAction::Show { username } => users::show(&db, &username),
             UserAction::Disable { username } => users::set_status(&db, &username, "suspended"),

@@ -3,6 +3,7 @@ use colored::*;
 use crate::config::ConfigStore;
 use crate::db::Database;
 use crate::tester;
+use crate::live;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
@@ -42,6 +43,10 @@ pub async fn start_web(db: &Database, port: u16, path: &str, password: Option<&s
     let base = if path.is_empty() { String::new() } else { format!("/{}", path.trim_matches('/')) };
     let auth_required = password.is_some();
     let pw = password.unwrap_or("").to_string();
+
+    // Start live monitoring
+    let live_state = live::new_live_state();
+    live::start_monitor(live_state.clone());
 
     if auth_required {
         println!("{} Web dashboard on http://{}{}/ (auth required)", "✓".green(), addr, base);
@@ -116,7 +121,7 @@ pub async fn start_web(db: &Database, port: u16, path: &str, password: Option<&s
                 serde_json::json!({"name":name,"type":p.proto_type,"exit_node":p.exit_node,"port":p.port,"active":port_up(p.port),"ws_path":p.ws_path,"uuid":p.uuid,"sni":p.sni,"secret":p.secret,"tls":p.tls})
             }).collect();
             let ulist: Vec<_> = users.iter().map(|u| {
-                serde_json::json!({"username":u.username,"plan":u.plan,"status":u.status,"data_used":u.data_used_bytes,"data_limit":u.data_limit_bytes,"expires":u.expires_at})
+                serde_json::json!({"username":u.username,"plan":u.plan,"status":u.status,"data_used":u.data_used_bytes,"data_limit":u.data_limit_bytes,"expires":u.expires_at,"max_ips":u.max_devices,"connections":u.connections,"created_at":u.created_at})
             }).collect();
             let plans: Vec<_> = cfg.plans.iter().map(|(name, p)| {
                 serde_json::json!({"name":name,"data_limit":p.data_limit,"duration":p.duration,"max_devices":p.max_devices,"protocols":p.protocols})
@@ -133,29 +138,31 @@ pub async fn start_web(db: &Database, port: u16, path: &str, password: Option<&s
 
         // ─── Users CRUD ───────────────────────────────
         } else if route == "/api/users" && method == "POST" {
-            // Create user: {"username":"x","plan":"y"}
+            // Create user: {"username":"x","data_limit":"50GB","max_ips":2,"duration_hours":720,"connections":"name1,name2"}
             match serde_json::from_str::<serde_json::Value>(body_str) {
                 Ok(p) => {
                     let username = p["username"].as_str().unwrap_or("");
-                    let plan = p["plan"].as_str().unwrap_or("");
-                    if username.is_empty() || plan.is_empty() {
-                        json_err("400 Bad Request", "username and plan required")
+                    if username.is_empty() {
+                        json_err("400 Bad Request", "username required")
                     } else {
-                        let cfg = ConfigStore::load().unwrap_or_default();
-                        match cfg.plans.get(plan) {
-                            Some(plan_cfg) => {
-                                let data_bytes = parse_data(&plan_cfg.data_limit);
-                                let days = parse_duration(&plan_cfg.duration);
-                                match db.add_user(username, plan, data_bytes, plan_cfg.max_devices as i64, days) {
-                                    Ok(_) => json_ok("201 Created", serde_json::json!({"ok":true,"username":username})),
-                                    Err(e) => json_err("400 Bad Request", &e.to_string()),
-                                }
-                            }
-                            None => json_err("400 Bad Request", &format!("Plan '{}' not found", plan)),
+                        let data_limit = parse_data(p["data_limit"].as_str().unwrap_or("0"));
+                        let max_ips = p["max_ips"].as_i64().unwrap_or(2);
+                        let duration_hours = p["duration_hours"].as_i64().unwrap_or(720); // 30 days default
+                        let connections = p["connections"].as_str().unwrap_or("");
+                        match db.add_user(username, data_limit, max_ips, duration_hours, connections) {
+                            Ok(_) => json_ok("201 Created", serde_json::json!({"ok":true,"username":username})),
+                            Err(e) => json_err("400 Bad Request", &e.to_string()),
                         }
                     }
                 }
                 Err(e) => json_err("400 Bad Request", &format!("Invalid JSON: {}", e)),
+            }
+
+        } else if route == "/api/users" && method == "DELETE" {
+            // Delete all users
+            match db.delete_all_users() {
+                Ok(_) => json_ok("200 OK", serde_json::json!({"ok":true})),
+                Err(e) => json_err("500 Internal Server Error", &e.to_string()),
             }
 
         } else if route.starts_with("/api/users/") && method == "DELETE" {
@@ -163,7 +170,7 @@ pub async fn start_web(db: &Database, port: u16, path: &str, password: Option<&s
             if username.is_empty() {
                 json_err("400 Bad Request", "username required")
             } else {
-                match db.set_status(username, "deleted") {
+                match db.delete_user(username) {
                     Ok(_) => json_ok("200 OK", serde_json::json!({"ok":true})),
                     Err(e) => json_err("400 Bad Request", &e.to_string()),
                 }
@@ -173,29 +180,12 @@ pub async fn start_web(db: &Database, port: u16, path: &str, password: Option<&s
             let username = &route[11..];
             match serde_json::from_str::<serde_json::Value>(body_str) {
                 Ok(p) => {
-                    let action = p["action"].as_str().unwrap_or("");
-                    let result = match action {
-                        "enable" => db.set_status(username, "active"),
-                        "disable" => db.set_status(username, "suspended"),
-                        "reset_data" => db.reset_data(username),
-                        "extend" => {
-                            let days = p["days"].as_i64().unwrap_or(30);
-                            db.extend_expiry(username, days)
-                        }
-                        _ => {
-                            // Direct field updates
-                            if let Some(status) = p["status"].as_str() {
-                                db.set_status(username, status)?;
-                            }
-                            if p["reset_data"].as_bool().unwrap_or(false) {
-                                db.reset_data(username)?;
-                            }
-                            if let Some(days) = p["extend_days"].as_i64() {
-                                db.extend_expiry(username, days)?;
-                            }
-                            Ok(())
-                        }
-                    };
+                    let data_limit = p["data_limit"].as_str().map(|s| parse_data(s));
+                    let max_ips = p["max_ips"].as_i64();
+                    let duration_hours = p["duration_hours"].as_i64();
+                    let connections = p["connections"].as_str();
+                    let status = p["status"].as_str();
+                    let result = db.update_user(username, data_limit, max_ips, duration_hours, connections, status);
                     match result {
                         Ok(_) => json_ok("200 OK", serde_json::json!({"ok":true})),
                         Err(e) => json_err("400 Bad Request", &e.to_string()),
@@ -397,6 +387,11 @@ pub async fn start_web(db: &Database, port: u16, path: &str, password: Option<&s
                 }
                 Err(e) => json_err("400 Bad Request", &format!("Invalid JSON: {}", e)),
             }
+
+        } else if route == "/api/live" {
+            let data = live_state.lock().unwrap();
+            let live_json = serde_json::to_string(&*data).unwrap_or_else(|_| "{}".to_string());
+            ("200 OK", "application/json", live_json)
 
         } else if route.starts_with("/api/link/") {
             let _username = &route[10..];
