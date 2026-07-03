@@ -32,12 +32,12 @@ pub enum Commands {
         /// Also perform HTTP test (slower but more thorough)
         #[arg(long, default_value = "false")]
         http: bool,
-        /// Auto-add healthy configs to connection list
-        #[arg(long, default_value = "false")]
-        auto_add: bool,
-        /// Default name prefix for auto-added configs
+        /// Sort results by: latency, status, name, type, country
         #[arg(long, default_value = "")]
-        prefix: String,
+        sort: String,
+        /// Auto-name configs from country (e.g. "DE-1", "US-2")
+        #[arg(long, default_value = "false")]
+        auto_name: bool,
     },
     Status,
     Map,
@@ -181,9 +181,9 @@ pub fn run() -> anyhow::Result<()> {
             let rt = tokio::runtime::Runtime::new()?;
             rt.block_on(web::start_web(&db, port, &path, password.as_deref()))
         }
-        Commands::Tester { file, http, auto_add, prefix } => {
+        Commands::Tester { file, http, sort, auto_name } => {
             let rt = tokio::runtime::Runtime::new()?;
-            rt.block_on(tester::run_cli(file.as_deref(), http))
+            rt.block_on(tester::run_cli(file.as_deref(), http, &sort, auto_name))
         }
         Commands::Status => monitor::status(&db, &cfg),
         Commands::Map => monitor::map(&cfg),

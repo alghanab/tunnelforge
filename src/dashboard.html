@@ -287,6 +287,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button class="btn btn-primary" id="tester-run" onclick="runTester()">⚡ Test All</button>
           <button class="btn btn-ghost" onclick="clearTester()">Clear</button>
+          <select id="tester-sort" style="padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:0.72rem;outline:none">
+            <option value="">Sort by...</option>
+            <option value="latency">⏱ Latency</option>
+            <option value="status">💚 Status</option>
+            <option value="country">🌍 Country</option>
+            <option value="name">📝 Name</option>
+            <option value="type">🔗 Type</option>
+          </select>
           <div id="tester-progress" style="font-size:0.72rem;color:var(--dim);display:none">
             <span class="spinner" style="display:inline-block;width:12px;height:12px;border:2px solid var(--dim2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.6s linear infinite"></span>
             Testing...
@@ -304,6 +312,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
           <div style="display:flex;gap:6px">
             <button class="btn btn-sm btn-ghost" onclick="testerSelectAll()">Select All Healthy</button>
             <button class="btn btn-sm btn-ghost" onclick="testerDeselectAll()">Deselect All</button>
+            <button class="btn btn-sm btn-ghost" onclick="autoNameCountry(false)">🌍 Name by Country</button>
+            <button class="btn btn-sm btn-ghost" onclick="autoNameCountry(true)">🌍+IP Name</button>
             <button class="btn btn-sm btn-primary" id="tester-add-btn" onclick="addSelectedConfigs()">➕ Add Selected</button>
           </div>
         </div>
@@ -316,6 +326,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:
                 </th>
                 <th style="padding:10px 12px;text-align:left">Name</th>
                 <th style="padding:10px 12px;text-align:left">Type</th>
+                <th style="padding:10px 12px;text-align:left">Country</th>
                 <th style="padding:10px 12px;text-align:left">Server</th>
                 <th style="padding:10px 12px;text-align:center">TCP</th>
                 <th style="padding:10px 12px;text-align:center">Latency</th>
@@ -637,10 +648,11 @@ async function runTester() {
   document.getElementById('tester-summary').innerHTML = '';
 
   try {
+    const sort = document.getElementById('tester-sort').value;
     const r = await fetch(API + '/tester', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({configs: input, http: doHttp})
+      body: JSON.stringify({configs: input, http: doHttp, sort: sort})
     });
 
     if (!r.ok) {
@@ -681,6 +693,7 @@ function renderTesterResults() {
       <td><input type="checkbox" class="tester-check" data-idx="${i}" ${canCheck ? 'checked' : 'disabled'} style="accent-color:var(--accent)"></td>
       <td><input type="text" class="tester-name" data-idx="${i}" value="${escHtml(r.name)}" title="Click to rename"></td>
       <td>${badge(r.config_type, 'blue')}</td>
+      <td style="font-size:0.72rem">${r.geo ? escHtml(r.geo.country_code) + ' ' + escHtml(r.geo.country) : '<span style="color:var(--dim)">-</span>'}</td>
       <td style="font-family:monospace;font-size:0.72rem">${escHtml(r.server)}:${r.port}</td>
       <td style="text-align:center">${tcpIcon}</td>
       <td style="text-align:center;font-family:monospace">${latency}</td>
@@ -798,6 +811,24 @@ function escHtml(s) {
 function escAttr(s) {
   if (!s) return '';
   return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function autoNameCountry(includeIp) {
+  const counts = {};
+  TESTER_RESULTS.forEach((r, i) => {
+    const nameInput = document.querySelector(`.tester-name[data-idx="${i}"]`);
+    if (!nameInput) return;
+    if (r.geo && r.geo.country) {
+      const cc = r.geo.country_code || r.geo.country.substring(0,2).toUpperCase();
+      counts[cc] = (counts[cc] || 0) + 1;
+      if (includeIp) {
+        nameInput.value = r.geo.country + '-' + r.server;
+      } else {
+        nameInput.value = cc + '-' + counts[cc];
+      }
+    }
+  });
+  toast('Names updated from country data');
 }
 
 // ─── Init ───────────────────────────────────────

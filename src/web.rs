@@ -128,12 +128,17 @@ pub async fn start_web(db: &Database, port: u16, path: &str, password: Option<&s
                 Ok(parsed) if parsed.get("configs").and_then(|c| c.as_str()).is_some() => {
                     let configs_text = parsed["configs"].as_str().unwrap_or("");
                     let do_http = parsed["http"].as_bool().unwrap_or(false);
+                    let sort_by = parsed["sort"].as_str().unwrap_or("");
                     let configs = tester::parse_bulk_configs(configs_text);
                     if configs.is_empty() {
                         let err = serde_json::json!({"error": "No valid configs found", "results": []});
                         ("200 OK", "application/json", err.to_string())
                     } else {
-                        let results = tester::test_bulk(&configs, do_http, 10).await;
+                        let mut results = tester::test_bulk(&configs, do_http, 10).await;
+                        // Geo lookup
+                        tester::lookup_geo(&mut results).await;
+                        // Sort
+                        tester::sort_results(&mut results, tester::SortBy::from_str(sort_by));
                         let data = serde_json::json!({"results": results, "total": results.len(),
                             "healthy": results.iter().filter(|r| r.status == "healthy" || r.status == "slow").count()});
                         ("200 OK", "application/json", data.to_string())
