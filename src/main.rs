@@ -14,6 +14,7 @@ mod web;
 mod sub;
 mod tester;
 mod live;
+mod restore;
 
 fn main() -> anyhow::Result<()> {
     cli::run()

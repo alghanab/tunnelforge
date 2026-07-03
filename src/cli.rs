@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use crate::{config::ConfigStore, db::Database, nodes, protocols, imports, plans, users, links, enforcer, monitor, service, sub, web, tester};
+use crate::{config::ConfigStore, db::Database, nodes, protocols, imports, plans, users, links, enforcer, monitor, service, sub, web, tester, restore};
 
 #[derive(Parser)]
 #[command(name = "tunnelforge", version = "0.3.0", about = "Manage censorship bypass proxy tunnels")]
@@ -40,6 +40,8 @@ pub enum Commands {
         auto_name: bool,
     },
     Status,
+    /// Restore all proxy services after restart/crash
+    Restore,
     Map,
     Ports,
     Enforce { #[arg(long)] dry_run: bool },
@@ -198,6 +200,7 @@ pub fn run() -> anyhow::Result<()> {
             rt.block_on(tester::run_cli(file.as_deref(), http, &sort, auto_name))
         }
         Commands::Status => monitor::status(&db, &cfg),
+        Commands::Restore => restore::run(),
         Commands::Map => monitor::map(&cfg),
         Commands::Ports => monitor::ports(),
         Commands::Enforce { dry_run } => enforcer::run(&db, &cfg, dry_run),
