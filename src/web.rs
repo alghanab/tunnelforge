@@ -71,7 +71,7 @@ pub async fn start_web(db: &Database, port: u16, path: &str, password: Option<&s
                 }).collect();
 
                 let protos: Vec<_> = cfg.protocols.iter().map(|(name, p)| {
-                    serde_json::json!({"name":name,"type":p.proto_type,"exit_node":p.exit_node,"port":p.port,"active":port_up(p.port),"ws_path":p.ws_path})
+                    serde_json::json!({"name":name,"type":p.proto_type,"exit_node":p.exit_node,"port":p.port,"active":port_up(p.port),"ws_path":p.ws_path,"uuid":p.uuid,"sni":p.sni,"secret":p.secret,"tls":p.tls})
                 }).collect();
 
                 let ulist: Vec<_> = users.iter().map(|u| {

@@ -2,358 +2,538 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>TunnelForge</title>
 <style>
-:root{--bg:#0a0a0f;--surface:#12121a;--border:#1e1e2e;--text:#e0e0e0;--dim:#666;--accent:#7c6cf0;--accent2:#5a4bd1;--green:#00c9a7;--red:#ff6b6b;--yellow:#ffd93d;--radius:10px}
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+:root{
+  --bg:#08080c;--surface:#101018;--surface2:#18182a;--border:#ffffff0d;--border2:#ffffff15;
+  --text:#e8e8ed;--dim:#6b6b80;--dim2:#45455a;
+  --accent:#6366f1;--accent-glow:#6366f140;--accent2:#818cf8;
+  --green:#34d399;--green-glow:#34d39930;--red:#f87171;--red-glow:#f8717130;--yellow:#fbbf24;--yellow-glow:#fbbf2430;
+  --radius:12px;--radius-sm:8px;--radius-xs:6px;
+  --font:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden;min-height:100vh;padding-bottom:80px}
 ::selection{background:var(--accent);color:#fff}
-a{color:var(--accent);text-decoration:none}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--dim2);border-radius:3px}
 
-/* Layout */
-.app{display:flex;min-height:100vh}
-.sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);padding:20px 0;flex-shrink:0;position:fixed;height:100vh;overflow-y:auto}
-.main{margin-left:220px;flex:1;padding:30px;max-width:960px}
+/* Toast */
+.toast{position:fixed;top:20px;right:20px;background:var(--surface2);border:1px solid var(--border2);padding:12px 20px;border-radius:var(--radius-sm);font-size:0.82rem;z-index:1000;transform:translateX(120%);transition:transform 0.3s ease;backdrop-filter:blur(20px)}
+.toast.show{transform:translateX(0)}
+.toast.success{border-left:3px solid var(--green)}
+.toast.error{border-left:3px solid var(--red)}
 
-/* Sidebar */
-.logo{padding:0 20px 24px;font-size:1.2rem;font-weight:700;color:#fff}
-.logo span{color:var(--accent)}
-.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;color:var(--dim);cursor:pointer;font-size:0.85rem;transition:all 0.15s;border-left:3px solid transparent}
-.nav-item:hover{color:var(--text);background:rgba(124,108,240,0.05)}
-.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(124,108,240,0.08)}
-.nav-item .icon{width:18px;text-align:center}
-.nav-section{padding:16px 20px 6px;font-size:0.65rem;text-transform:uppercase;letter-spacing:2px;color:var(--dim)}
+/* Header */
+.header{padding:16px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;background:rgba(8,8,12,0.8);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+.logo{font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:8px}
+.logo .icon{width:28px;height:28px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:0.9rem}
+.header-actions{display:flex;gap:8px}
 
-/* Cards */
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:28px}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
-.card-label{font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:6px}
-.card-value{font-size:1.6rem;font-weight:700;color:#fff}
-.card-sub{font-size:0.75rem;color:var(--dim);margin-top:4px}
+/* Tabs */
+.tabs{display:flex;gap:4px;padding:12px 16px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{padding:8px 16px;border-radius:var(--radius-sm);font-size:0.78rem;font-weight:500;color:var(--dim);cursor:pointer;white-space:nowrap;transition:all 0.2s;border:1px solid transparent;user-select:none}
+.tab:hover{color:var(--text);background:var(--surface)}
+.tab.active{color:var(--accent);background:var(--accent-glow);border-color:var(--accent)20}
 
-/* Tables */
-.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:20px;overflow:hidden}
-.panel-header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border)}
-.panel-title{font-size:0.85rem;font-weight:600;color:#fff}
-.panel-actions{display:flex;gap:8px}
-table{width:100%;border-collapse:collapse}
-th{text-align:left;padding:10px 18px;font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--dim);border-bottom:1px solid var(--border);font-weight:600}
-td{padding:10px 18px;font-size:0.82rem;border-bottom:1px solid var(--border)}
-tr:last-child td{border-bottom:none}
-tr:hover{background:rgba(124,108,240,0.03)}
+/* Container */
+.container{max-width:800px;margin:0 auto;padding:0 16px}
 
-/* Badges */
-.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:0.7rem;font-weight:600}
-.badge-green{background:rgba(0,201,167,0.12);color:var(--green)}
-.badge-red{background:rgba(255,107,107,0.12);color:var(--red)}
-.badge-yellow{background:rgba(255,217,61,0.12);color:var(--yellow)}
-.badge-blue{background:rgba(124,108,240,0.12);color:var(--accent)}
+/* Page */
+.page{display:none;animation:fadeIn 0.2s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
-/* Buttons */
-.btn{padding:6px 14px;border:1px solid var(--border);background:transparent;color:var(--text);border-radius:6px;cursor:pointer;font-size:0.78rem;transition:all 0.15s}
-.btn:hover{border-color:var(--accent);color:var(--accent)}
-.btn-sm{padding:3px 10px;font-size:0.7rem}
-.btn-accent{background:var(--accent);border-color:var(--accent);color:#fff}
-.btn-accent:hover{background:var(--accent2)}
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px}
+@media(min-width:640px){.stats{grid-template-columns:repeat(4,1fr)}}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;position:relative;overflow:hidden}
+.stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);opacity:0.5}
+.stat-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);margin-bottom:6px}
+.stat-value{font-size:1.5rem;font-weight:700;letter-spacing:-0.5px}
+.stat-sub{font-size:0.72rem;color:var(--dim);margin-top:4px}
 
-/* Forms */
-.form-row{display:flex;gap:12px;margin-bottom:12px;align-items:center}
-.form-label{font-size:0.78rem;color:var(--dim);min-width:80px}
-input[type="text"],input[type="password"],input[type="number"],select{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:6px;font-size:0.82rem;outline:none;transition:border 0.15s}
-input:focus,select:focus{border-color:var(--accent)}
+/* Card */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
+.card-header{padding:14px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)}
+.card-title{font-size:0.82rem;font-weight:600;display:flex;align-items:center;gap:8px}
+.card-body{padding:16px}
 
-/* Flow diagram */
-.flow{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--bg);border-radius:8px;margin-bottom:6px;font-size:0.8rem}
-.flow .arrow{color:var(--accent);font-size:0.7rem}
-.flow .tag{margin-left:auto}
+/* User card */
+.user-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;transition:border-color 0.2s}
+.user-card:hover{border-color:var(--border2)}
+.user-header{padding:14px 16px;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+.user-info{display:flex;align-items:center;gap:12px}
+.user-avatar{width:36px;height:36px;border-radius:10px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700;color:var(--accent)}
+.user-name{font-size:0.88rem;font-weight:600}
+.user-plan{font-size:0.72rem;color:var(--dim)}
+.user-right{display:flex;align-items:center;gap:10px}
+.user-status{width:8px;height:8px;border-radius:50%}
+.user-status.active{background:var(--green);box-shadow:0 0 8px var(--green-glow)}
+.user-status.suspended{background:var(--red);box-shadow:0 0 8px var(--red-glow)}
+.chevron{color:var(--dim2);font-size:0.7rem;transition:transform 0.2s}
+.user-card.open .chevron{transform:rotate(90deg)}
 
-/* Copy */
-.copy{cursor:pointer;color:var(--dim);font-size:0.7rem;padding:2px 6px;border:1px solid var(--border);border-radius:4px}
-.copy:hover{color:var(--accent);border-color:var(--accent)}
+/* User expanded */
+.user-body{display:none;padding:0 16px 16px;border-top:1px solid var(--border)}
+.user-card.open .user-body{display:block}
 
-/* Link box */
-.link-box{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;font-family:monospace;font-size:0.75rem;word-break:break-all;position:relative}
-.link-box .copy{position:absolute;top:8px;right:8px}
+/* Usage bar */
+.usage{margin:12px 0}
+.usage-header{display:flex;justify-content:space-between;margin-bottom:6px}
+.usage-label{font-size:0.72rem;color:var(--dim)}
+.usage-value{font-size:0.72rem;font-weight:600}
+.usage-bar{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden}
+.usage-fill{height:100%;border-radius:3px;transition:width 0.5s ease}
+.usage-fill.low{background:var(--green)}
+.usage-fill.mid{background:var(--yellow)}
+.usage-fill.high{background:var(--red)}
+
+/* Info grid */
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.info-item{background:var(--bg);border-radius:var(--radius-xs);padding:10px 12px}
+.info-label{font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
+.info-value{font-size:0.82rem;font-weight:500;margin-top:2px}
+
+/* Links */
+.links-section{margin-top:12px}
+.links-title{font-size:0.72rem;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:8px}
+.link-item{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-xs);padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all 0.15s}
+.link-item:hover{border-color:var(--accent)40;background:var(--accent-glow)}
+.link-item:active{transform:scale(0.99)}
+.link-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;flex-shrink:0}
+.link-icon.vless{background:#6366f120;color:#818cf8}
+.link-icon.vmess{background:#8b5cf620;color:#a78bfa}
+.link-icon.mtproto{background:#0ea5e920;color:#38bdf8}
+.link-icon.trojan{background:#f9731620;color:#fb923c}
+.link-info{flex:1;min-width:0}
+.link-type{font-size:0.72rem;font-weight:600}
+.link-detail{font-size:0.68rem;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.link-copy{font-size:0.68rem;color:var(--dim);padding:4px 8px;border:1px solid var(--border);border-radius:4px;flex-shrink:0;transition:all 0.15s}
+.link-copy:hover{color:var(--accent);border-color:var(--accent)}
+.link-copy.copied{color:var(--green);border-color:var(--green)}
+
+/* Connection flow */
+.flow-item{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;font-size:0.78rem}
+.flow-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.flow-dot.active{background:var(--green);box-shadow:0 0 6px var(--green-glow)}
+.flow-dot.inactive{background:var(--dim2)}
+.flow-name{font-weight:600;min-width:100px}
+.flow-arrow{color:var(--dim2);font-size:0.65rem}
+.flow-detail{color:var(--dim);font-size:0.72rem}
+.flow-tag{margin-left:auto}
+
+/* Node card */
+.node-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:14px}
+.node-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+.node-icon.paquet{background:linear-gradient(135deg,#6366f120,#8b5cf620);color:var(--accent)}
+.node-icon.direct{background:linear-gradient(135deg,#34d39920,#05966920);color:var(--green)}
+.node-info{flex:1}
+.node-name{font-size:0.85rem;font-weight:600}
+.node-server{font-size:0.72rem;color:var(--dim);font-family:monospace}
+.node-meta{display:flex;gap:12px;margin-top:4px}
+.node-meta span{font-size:0.68rem;color:var(--dim)}
+
+/* Protocol card */
+.proto-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:14px}
+.proto-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:0.85rem;font-weight:700;flex-shrink:0}
 
 /* Empty state */
-.empty{padding:30px;text-align:center;color:var(--dim);font-size:0.85rem}
+.empty{text-align:center;padding:40px 20px}
+.empty-icon{font-size:2.5rem;margin-bottom:12px}
+.empty-title{font-size:0.95rem;font-weight:600;margin-bottom:6px}
+.empty-desc{font-size:0.78rem;color:var(--dim);max-width:300px;margin:0 auto 16px;line-height:1.5}
 
-/* Section page */
-.page{display:none}.page.active{display:block}
-.page-title{font-size:1.1rem;font-weight:700;color:#fff;margin-bottom:20px}
+/* Button */
+.btn{padding:8px 16px;border-radius:var(--radius-xs);font-size:0.78rem;font-weight:500;cursor:pointer;transition:all 0.15s;border:none;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent2)}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.btn-sm{padding:5px 10px;font-size:0.72rem}
+.btn-icon{width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-xs);background:transparent;border:1px solid var(--border);color:var(--dim);cursor:pointer;transition:all 0.15s}
+.btn-icon:hover{border-color:var(--accent);color:var(--accent)}
 
-/* Responsive */
-@media(max-width:768px){.sidebar{display:none}.main{margin-left:0;padding:16px}}
+/* Setup */
+.setup-step{display:flex;gap:14px;padding:16px 0;border-bottom:1px solid var(--border)}
+.setup-step:last-child{border-bottom:none}
+.setup-num{width:28px;height:28px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:600;color:var(--dim);flex-shrink:0}
+.setup-step.done .setup-num{background:var(--green-glow);color:var(--green)}
+.setup-content{flex:1}
+.setup-title{font-size:0.82rem;font-weight:600;margin-bottom:2px}
+.setup-desc{font-size:0.72rem;color:var(--dim)}
+.setup-cmd{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-xs);padding:8px 12px;font-family:monospace;font-size:0.72rem;margin-top:8px;color:var(--accent2);cursor:pointer;transition:all 0.15s}
+.setup-cmd:hover{border-color:var(--accent)}
+
+/* Badge */
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:0.68rem;font-weight:600}
+.badge-green{background:var(--green-glow);color:var(--green)}
+.badge-red{background:var(--red-glow);color:var(--red)}
+.badge-yellow{background:var(--yellow-glow);color:var(--yellow)}
+.badge-blue{background:#6366f120;color:var(--accent2)}
+
+/* Action bar */
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Plan card */
+.plan-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px}
+.plan-name{font-size:0.88rem;font-weight:600;margin-bottom:8px}
+.plan-detail{display:flex;gap:16px;flex-wrap:wrap}
+.plan-detail span{font-size:0.72rem;color:var(--dim)}
+.plan-detail strong{color:var(--text)}
+
+/* Service row */
+.svc-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:0.78rem}
+.svc-row:last-child{border-bottom:none}
+.svc-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 
 /* Settings */
-.setting-group{margin-bottom:20px}
-.setting-group h4{font-size:0.8rem;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px}
-.setting-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
-.setting-item:last-child{border-bottom:none}
-.setting-key{font-size:0.82rem;color:var(--text)}
-.setting-val{font-size:0.82rem;color:var(--dim);font-family:monospace}
+.setting{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)}
+.setting:last-child{border-bottom:none}
+.setting-key{font-size:0.82rem}
+.setting-val{font-size:0.78rem;color:var(--dim);font-family:monospace}
+
+/* Mobile bottom nav */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(16,16,24,0.95);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:8px 0;z-index:100}
+@media(min-width:768px){.bottom-nav{display:none}}
+.nav-btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 12px;color:var(--dim);font-size:0.6rem;cursor:pointer;transition:color 0.15s}
+.nav-btn.active{color:var(--accent)}
+.nav-btn .icon{font-size:1.1rem}
+
+/* Responsive */
+@media(min-width:768px){
+  .container{padding:0 24px}
+  .tabs{padding:12px 0}
+  body{padding-bottom:40px}
+}
 </style>
 </head>
 <body>
-<div class="app">
-  <div class="sidebar">
-    <div class="logo">🔥 <span>Tunnel</span>Forge</div>
-    <div class="nav-section">Overview</div>
-    <div class="nav-item active" onclick="show('dashboard')"><span class="icon">📊</span> Dashboard</div>
-    <div class="nav-section">Connections</div>
-    <div class="nav-item" onclick="show('nodes')"><span class="icon">🌐</span> Exit Nodes</div>
-    <div class="nav-item" onclick="show('inbounds')"><span class="icon">📥</span> Inbounds</div>
-    <div class="nav-item" onclick="show('outbounds')"><span class="icon">📤</span> Outbounds</div>
-    <div class="nav-section">Users</div>
-    <div class="nav-item" onclick="show('users')"><span class="icon">👥</span> Users</div>
-    <div class="nav-item" onclick="show('plans')"><span class="icon">📋</span> Plans</div>
-    <div class="nav-item" onclick="show('links')"><span class="icon">🔗</span> Links & Subs</div>
-    <div class="nav-section">System</div>
-    <div class="nav-item" onclick="show('services')"><span class="icon">⚙️</span> Services</div>
-    <div class="nav-item" onclick="show('settings')"><span class="icon">🛠</span> Settings</div>
-  </div>
 
-  <div class="main">
-    <!-- Dashboard -->
-    <div class="page active" id="page-dashboard">
-      <div class="cards" id="stats"></div>
-      <div class="panel">
-        <div class="panel-header"><span class="panel-title">Connection Flow</span></div>
-        <div id="flow-map" style="padding:14px"></div>
-      </div>
-    </div>
+<div class="toast" id="toast"></div>
 
-    <!-- Exit Nodes -->
-    <div class="page" id="page-nodes">
-      <h2 class="page-title">Exit Nodes</h2>
-      <div class="panel">
-        <div class="panel-header"><span class="panel-title">Configured Nodes</span></div>
-        <table><thead><tr><th>Name</th><th>Type</th><th>Server</th><th>SOCKS</th><th>Status</th></tr></thead><tbody id="nodes-tbody"></tbody></table>
-      </div>
-    </div>
-
-    <!-- Inbounds -->
-    <div class="page" id="page-inbounds">
-      <h2 class="page-title">Inbound Protocols</h2>
-      <p style="color:var(--dim);font-size:0.82rem;margin-bottom:16px">These are what your users connect to. Each inbound listens on a port and accepts connections via VLESS, VMess, Trojan, or MTProto.</p>
-      <div class="panel">
-        <table><thead><tr><th>Name</th><th>Protocol</th><th>Port</th><th>WS Path</th><th>Exit Node</th><th>Status</th></tr></thead><tbody id="inbounds-tbody"></tbody></table>
-      </div>
-    </div>
-
-    <!-- Outbounds -->
-    <div class="page" id="page-outbounds">
-      <h2 class="page-title">Outbound Connections</h2>
-      <p style="color:var(--dim);font-size:0.82rem;margin-bottom:16px">Where traffic exits to the internet. Each outbound connects through a paqet tunnel or directly via the VPS.</p>
-      <div class="panel">
-        <table><thead><tr><th>Exit Node</th><th>Type</th><th>Target</th><th>SOCKS Port</th><th>Status</th></tr></thead><tbody id="outbounds-tbody"></tbody></table>
-      </div>
-    </div>
-
-    <!-- Users -->
-    <div class="page" id="page-users">
-      <h2 class="page-title">Users</h2>
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">All Users</span>
-        </div>
-        <table><thead><tr><th>Username</th><th>Plan</th><th>Status</th><th>Data</th><th>Expires</th><th>Actions</th></tr></thead><tbody id="users-tbody"></tbody></table>
-      </div>
-    </div>
-
-    <!-- Plans -->
-    <div class="page" id="page-plans">
-      <h2 class="page-title">Subscription Plans</h2>
-      <div class="panel">
-        <table><thead><tr><th>Name</th><th>Data Limit</th><th>Duration</th><th>Max Devices</th><th>Protocols</th></tr></thead><tbody id="plans-tbody"></tbody></table>
-      </div>
-    </div>
-
-    <!-- Links & Subs -->
-    <div class="page" id="page-links">
-      <h2 class="page-title">Links & Subscriptions</h2>
-      <div class="form-row">
-        <label class="form-label">User</label>
-        <select id="link-user" onchange="loadLinks()"><option value="">Select user...</option></select>
-      </div>
-      <div id="links-container"></div>
-    </div>
-
-    <!-- Services -->
-    <div class="page" id="page-services">
-      <h2 class="page-title">Services</h2>
-      <div class="panel">
-        <table><thead><tr><th>Service</th><th>Status</th></tr></thead><tbody id="services-tbody"></tbody></table>
-      </div>
-    </div>
-
-    <!-- Settings -->
-    <div class="page" id="page-settings">
-      <h2 class="page-title">Settings</h2>
-      <div class="panel" style="padding:18px">
-        <div class="setting-group">
-          <h4>VPS Configuration</h4>
-          <div class="setting-item"><span class="setting-key">IP Address</span><span class="setting-val" id="set-ip">-</span></div>
-          <div class="setting-item"><span class="setting-key">Domain</span><span class="setting-val" id="set-domain">-</span></div>
-        </div>
-        <div class="setting-group">
-          <h4>Web Dashboard</h4>
-          <div class="setting-item"><span class="setting-key">Port</span><span class="setting-val" id="set-webport">-</span></div>
-          <div class="setting-item"><span class="setting-key">Path</span><span class="setting-val" id="set-webpath">-</span></div>
-          <div class="setting-item"><span class="setting-key">Auth</span><span class="setting-val" id="set-auth">-</span></div>
-        </div>
-        <div class="setting-group">
-          <h4>Statistics</h4>
-          <div class="setting-item"><span class="setting-key">Exit Nodes</span><span class="setting-val" id="set-nodes">-</span></div>
-          <div class="setting-item"><span class="setting-key">Protocols</span><span class="setting-val" id="set-protos">-</span></div>
-          <div class="setting-item"><span class="setting-key">Users</span><span class="setting-val" id="set-users">-</span></div>
-          <div class="setting-item"><span class="setting-key">Plans</span><span class="setting-val" id="set-plans">-</span></div>
-        </div>
-      </div>
-    </div>
+<div class="header">
+  <div class="logo"><div class="icon">⚡</div> TunnelForge</div>
+  <div class="header-actions">
+    <button class="btn-icon" onclick="load()" title="Refresh">↻</button>
   </div>
 </div>
 
+<div class="tabs" id="tabs">
+  <div class="tab active" data-tab="overview">Overview</div>
+  <div class="tab" data-tab="users">Users</div>
+  <div class="tab" data-tab="connections">Connections</div>
+  <div class="tab" data-tab="links">Links</div>
+  <div class="tab" data-tab="settings">Settings</div>
+</div>
+
+<div class="container">
+
+  <!-- OVERVIEW -->
+  <div class="page active" id="page-overview">
+    <div class="stats" id="stats"></div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">📡 Connection Flow</div></div>
+      <div class="card-body" id="flow"></div>
+    </div>
+  </div>
+
+  <!-- USERS -->
+  <div class="page" id="page-users">
+    <div id="users-container"></div>
+  </div>
+
+  <!-- CONNECTIONS -->
+  <div class="page" id="page-connections">
+    <div class="card">
+      <div class="card-header"><div class="card-title">🌐 Exit Nodes</div></div>
+      <div class="card-body" id="nodes-container"></div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-header"><div class="card-title">🔗 Protocols</div></div>
+      <div class="card-body" id="protos-container"></div>
+    </div>
+  </div>
+
+  <!-- LINKS -->
+  <div class="page" id="page-links">
+    <div id="links-container"></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="page" id="page-settings">
+    <div class="card">
+      <div class="card-header"><div class="card-title">🛠 Configuration</div></div>
+      <div class="card-body" id="settings-container"></div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-header"><div class="card-title">⚙️ Services</div></div>
+      <div class="card-body" id="services-container" style="padding:0"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Bottom nav (mobile) -->
+<div class="bottom-nav">
+  <div class="nav-btn active" data-tab="overview"><span class="icon">📊</span>Home</div>
+  <div class="nav-btn" data-tab="users"><span class="icon">👥</span>Users</div>
+  <div class="nav-btn" data-tab="connections"><span class="icon">🌐</span>Network</div>
+  <div class="nav-btn" data-tab="links"><span class="icon">🔗</span>Links</div>
+  <div class="nav-btn" data-tab="settings"><span class="icon">⚙</span>Settings</div>
+</div>
+
 <script>
-const API = window.location.pathname.replace(/\/+$/, '') + '/api';
+const API = location.pathname.replace(/\/+$/,'') + '/api';
 let DATA = {};
 
-function show(id) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + id).classList.add('active');
-  event.target.closest('.nav-item').classList.add('active');
-  if (id === 'links') populateUserSelect();
+// ─── Navigation ─────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab, .nav-btn').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
+  document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === 'page-' + tab));
+  if (tab === 'links' && !document.querySelector('#links-container').innerHTML.trim()) renderLinks();
+}
+document.querySelectorAll('.tab, .nav-btn').forEach(el => el.addEventListener('click', () => switchTab(el.dataset.tab)));
+
+// ─── Toast ──────────────────────────────────────
+function toast(msg, type='success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast ' + type + ' show';
+  setTimeout(() => el.classList.remove('show'), 2500);
 }
 
-function badge(text, type) { return `<span class="badge badge-${type}">${text}</span>`; }
-function statusBadge(s) { return s === 'active' ? badge('active','green') : s === 'suspended' ? badge('suspended','red') : badge(s,'yellow'); }
-function fmtBytes(b) { if(b>=1073741824)return(b/1073741824).toFixed(1)+'GB';if(b>=1048576)return(b/1048576).toFixed(1)+'MB';return b+'B'; }
-
+// ─── Data ───────────────────────────────────────
 async function load() {
   try {
     const r = await fetch(API + '/status');
-    if (!r.ok) { document.body.innerHTML='<div style="padding:40px;text-align:center;color:#ff6b6b">Authentication required. <a href="/login">Login</a></div>'; return; }
+    if (!r.ok) { document.body.innerHTML = '<div style="padding:60px;text-align:center"><h2 style="margin-bottom:12px">🔒 Authentication Required</h2><p style="color:var(--dim)">Please log in to access the dashboard.</p></div>'; return; }
     DATA = await r.json();
     render();
-  } catch(e) { console.error(e); }
+  } catch(e) { console.error(e); toast('Failed to load data', 'error'); }
 }
 
+// ─── Helpers ────────────────────────────────────
+const fmt = b => b >= 1073741824 ? (b/1073741824).toFixed(1)+'GB' : b >= 1048576 ? (b/1048576).toFixed(1)+'MB' : b+'B';
+const pct = (a,b) => b > 0 ? Math.min(100, Math.round(a/b*100)) : 0;
+const badge = (t,c) => `<span class="badge badge-${c}">${t}</span>`;
+const daysLeft = d => { const ms = new Date(d) - new Date(); return Math.max(0, Math.ceil(ms/86400000)); };
+
+async function copyLink(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('Copied to clipboard');
+    if (event?.target) { event.target.classList.add('copied'); event.target.textContent = '✓'; setTimeout(() => { event.target.classList.remove('copied'); event.target.textContent = 'copy'; }, 1500); }
+  } catch {
+    // Fallback for non-HTTPS
+    const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    toast('Copied');
+  }
+}
+
+function makeLink(proto) {
+  const ip = DATA.vps_ip || 'YOUR_IP';
+  const domain = DATA.vps_domain || '';
+  if (proto.type === 'vless') return `vless://${proto.uuid||''}@${ip}:${proto.port}?encryption=none&security=tls&sni=${domain}&fp=chrome&type=ws&host=${domain}&path=${encodeURIComponent(proto.ws_path||'/')}#${proto.name}`;
+  if (proto.type === 'mtproto') return `tg://proxy?server=${ip}&port=${proto.port}&secret=${proto.secret||''}`;
+  if (proto.type === 'vmess') return `vmess://${btoa(JSON.stringify({v:"2",ps:proto.name,add:ip,port:proto.port,id:proto.uuid||'',aid:0,net:"ws",type:"none",host:domain,path:proto.ws_path||'/',tls:"tls",sni:domain}))}`;
+  return '';
+}
+
+// ─── Render ─────────────────────────────────────
 function render() {
   const nodes = DATA.nodes || [];
   const protos = DATA.protocols || [];
   const users = DATA.users || [];
   const plans = DATA.plans || [];
-
-  // Dashboard stats
   const activeUsers = users.filter(u => u.status === 'active').length;
-  const activeServices = nodes.filter(n => n.active).length + protos.filter(p => p.active).length;
+  const activeNodes = nodes.filter(n => n.active).length;
+
+  // Stats
   document.getElementById('stats').innerHTML = `
-    <div class="card"><div class="card-label">Exit Nodes</div><div class="card-value">${nodes.length}</div><div class="card-sub">${nodes.map(n=>n.name).join(', ')}</div></div>
-    <div class="card"><div class="card-label">Inbounds</div><div class="card-value">${protos.length}</div><div class="card-sub">${protos.map(p=>p.type).filter((v,i,a)=>a.indexOf(v)===i).join(', ')}</div></div>
-    <div class="card"><div class="card-label">Users</div><div class="card-value">${activeUsers}<span style="font-size:0.8rem;color:var(--dim)"> / ${users.length}</span></div><div class="card-sub">${activeUsers} active</div></div>
-    <div class="card"><div class="card-label">Services</div><div class="card-value">${activeServices}</div><div class="card-sub">running</div></div>
+    <div class="stat"><div class="stat-label">Exit Nodes</div><div class="stat-value">${nodes.length}</div><div class="stat-sub">${activeNodes} active</div></div>
+    <div class="stat"><div class="stat-label">Protocols</div><div class="stat-value">${protos.length}</div><div class="stat-sub">${[...new Set(protos.map(p=>p.type))].join(', ')}</div></div>
+    <div class="stat"><div class="stat-label">Users</div><div class="stat-value">${users.length}</div><div class="stat-sub">${activeUsers} active</div></div>
+    <div class="stat"><div class="stat-label">Plans</div><div class="stat-value">${plans.length}</div><div class="stat-sub">${plans.map(p=>p.name).join(', ')}</div></div>
   `;
 
-  // Flow map
-  document.getElementById('flow-map').innerHTML = protos.map(p => {
+  // Flow
+  document.getElementById('flow').innerHTML = protos.map(p => {
     const node = nodes.find(n => n.name === p.exit_node);
-    const ucount = users.filter(u => { const pl = plans.find(pl => pl.name === u.plan); return pl?.protocols?.includes(p.name); }).length;
-    return `<div class="flow">
-      <strong>${p.name}</strong> ${badge(p.type, 'blue')} <span style="color:var(--dim)">:${p.port}</span>
-      <span class="arrow">→</span> ${p.exit_node} ${badge(node?.type || '?', 'blue')}
-      <span class="arrow">→</span> ${node?.server?.split(':')[0] || 'direct'}
-      <span class="tag">${badge(ucount + ' users', ucount > 0 ? 'green' : 'yellow')}</span>
+    const icon = p.type === 'vless' ? '🔗' : p.type === 'mtproto' ? '📱' : p.type === 'vmess' ? '🔗' : '🔒';
+    return `<div class="flow-item">
+      <div class="flow-dot ${p.active ? 'active' : 'inactive'}"></div>
+      <div style="font-weight:600;min-width:120px">${icon} ${p.name}</div>
+      <div class="flow-arrow">→</div>
+      <div style="min-width:80px">${p.exit_node}</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-detail">${node?.server?.split(':')[0] || 'direct'}</div>
+      <div class="flow-tag">${badge(':'+p.port, 'blue')}</div>
     </div>`;
-  }).join('') || '<div class="empty">No connections configured</div>';
-
-  // Nodes
-  document.getElementById('nodes-tbody').innerHTML = nodes.map(n =>
-    `<tr><td><strong>${n.name}</strong></td><td>${badge(n.type,'blue')}</td><td>${n.server||'-'}</td><td>${n.socks_port||'-'}</td><td>${n.active?badge('running','green'):badge('stopped','red')}</td></tr>`
-  ).join('') || '<tr><td colspan="5" class="empty">No nodes</td></tr>';
-
-  // Inbounds
-  document.getElementById('inbounds-tbody').innerHTML = protos.map(p =>
-    `<tr><td><strong>${p.name}</strong></td><td>${badge(p.type,'blue')}</td><td>${p.port}</td><td style="font-family:monospace;font-size:0.75rem">${p.ws_path||'-'}</td><td>${p.exit_node}</td><td>${p.active?badge('up','green'):badge('down','red')}</td></tr>`
-  ).join('') || '<tr><td colspan="6" class="empty">No inbounds</td></tr>';
-
-  // Outbounds
-  document.getElementById('outbounds-tbody').innerHTML = nodes.map(n =>
-    `<tr><td><strong>${n.name}</strong></td><td>${badge(n.type,'blue')}</td><td>${n.server||'VPS direct'}</td><td>${n.socks_port||'-'}</td><td>${n.active?badge('up','green'):badge('down','red')}</td></tr>`
-  ).join('') || '<tr><td colspan="5" class="empty">No outbounds</td></tr>';
+  }).join('') || '<div class="empty"><div class="empty-icon">📡</div><div class="empty-title">No connections yet</div><div class="empty-desc">Add exit nodes and protocols to get started</div></div>';
 
   // Users
-  document.getElementById('users-tbody').innerHTML = users.map(u =>
-    `<tr><td><strong>${u.username}</strong></td><td>${u.plan}</td><td>${statusBadge(u.status)}</td><td>${fmtBytes(u.data_used)} / ${fmtBytes(u.data_limit)}</td><td>${(u.expires||'').substring(0,10)}</td><td><button class="btn btn-sm" onclick="copyUserLinks('${u.username}')">Copy Links</button></td></tr>`
-  ).join('') || '<tr><td colspan="6" class="empty">No users</td></tr>';
+  renderUsers(users, plans, protos);
 
-  // Plans
-  document.getElementById('plans-tbody').innerHTML = plans.map(p =>
-    `<tr><td><strong>${p.name}</strong></td><td>${p.data_limit}</td><td>${p.duration}</td><td>${p.max_devices}</td><td style="font-size:0.75rem">${(p.protocols||[]).join(', ')}</td></tr>`
-  ).join('') || '<tr><td colspan="5" class="empty">No plans</td></tr>';
+  // Nodes
+  document.getElementById('nodes-container').innerHTML = nodes.map(n => `
+    <div class="node-card">
+      <div class="node-icon ${n.type}">${n.type === 'paqet' ? '🚀' : '🌐'}</div>
+      <div class="node-info">
+        <div class="node-name">${n.name} ${badge(n.type, 'blue')}</div>
+        <div class="node-server">${n.server || 'VPS direct'}</div>
+        <div class="node-meta"><span>SOCKS :${n.socks_port||'-'}</span><span>Ext :${n.external_port||'-'}</span></div>
+      </div>
+      <div class="user-status ${n.active?'active':'suspended'}"></div>
+    </div>
+  `).join('') || '<div class="empty"><div class="empty-icon">🌐</div><div class="empty-title">No exit nodes</div></div>';
+
+  // Protos
+  document.getElementById('protos-container').innerHTML = protos.map(p => {
+    const colors = {vless:'#6366f1',vmess:'#8b5cf6',mtproto:'#0ea5e9',trojan:'#f97316'};
+    const c = colors[p.type] || '#666';
+    return `<div class="proto-card">
+      <div class="proto-icon" style="background:${c}15;color:${c}">${p.type.charAt(0).toUpperCase()}</div>
+      <div class="node-info">
+        <div class="node-name">${p.name} ${badge(p.type, 'blue')}</div>
+        <div class="node-server">Port ${p.port} → ${p.exit_node}</div>
+        <div class="node-meta"><span>${p.ws_path||'direct'}</span></div>
+      </div>
+      <div class="user-status ${p.active?'active':'suspended'}"></div>
+    </div>`;
+  }).join('') || '<div class="empty"><div class="empty-icon">🔗</div><div class="empty-title">No protocols</div></div>';
+
+  // Links page
+  renderLinks();
 
   // Settings
-  document.getElementById('set-ip').textContent = DATA.vps_ip || 'not set';
-  document.getElementById('set-domain').textContent = DATA.vps_domain || 'not set';
-  document.getElementById('set-webport').textContent = DATA.web_port || '-';
-  document.getElementById('set-webpath').textContent = DATA.web_path || '/';
-  document.getElementById('set-auth').textContent = DATA.auth_enabled ? 'enabled' : 'disabled';
-  document.getElementById('set-nodes').textContent = nodes.length;
-  document.getElementById('set-protos').textContent = protos.length;
-  document.getElementById('set-users').textContent = users.length;
-  document.getElementById('set-plans').textContent = plans.length;
-
-  // User select for links page
-  populateUserSelect();
+  renderSettings(nodes, protos, users, plans);
 }
 
-function populateUserSelect() {
-  const sel = document.getElementById('link-user');
-  const current = sel.value;
-  sel.innerHTML = '<option value="">Select user...</option>' + (DATA.users||[]).map(u => `<option value="${u.username}" ${u.username===current?'selected':''}>${u.username}</option>`).join('');
-  if (current) loadLinks();
+function renderUsers(users, plans, protos) {
+  const container = document.getElementById('users-container');
+  if (!users.length) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">👥</div><div class="empty-title">No users yet</div><div class="empty-desc">Create a plan and add users to generate shareable links</div></div>';
+    return;
+  }
+
+  container.innerHTML = users.map(u => {
+    const used = pct(u.data_used, u.data_limit);
+    const days = daysLeft(u.expires);
+    const fillClass = used < 60 ? 'low' : used < 85 ? 'mid' : 'high';
+    const plan = plans.find(p => p.name === u.plan);
+    const userProtos = plan?.protocols?.map(pn => protos.find(p => p.name === pn)).filter(Boolean) || [];
+
+    return `<div class="user-card" id="user-${u.username}">
+      <div class="user-header" onclick="this.parentElement.classList.toggle('open')">
+        <div class="user-info">
+          <div class="user-avatar">${u.username.charAt(0).toUpperCase()}</div>
+          <div><div class="user-name">${u.username}</div><div class="user-plan">${u.plan} · ${days}d left</div></div>
+        </div>
+        <div class="user-right">
+          <div class="user-status ${u.status}"></div>
+          <div class="chevron">▶</div>
+        </div>
+      </div>
+      <div class="user-body">
+        <div class="usage">
+          <div class="usage-header"><span class="usage-label">Data Usage</span><span class="usage-value">${fmt(u.data_used)} / ${fmt(u.data_limit)} (${used}%)</span></div>
+          <div class="usage-bar"><div class="usage-fill ${fillClass}" style="width:${used}%"></div></div>
+        </div>
+        <div class="info-grid">
+          <div class="info-item"><div class="info-label">Status</div><div class="info-value">${u.status === 'active' ? badge('Active','green') : badge(u.status,'red')}</div></div>
+          <div class="info-item"><div class="info-label">Expires</div><div class="info-value">${u.expires?.substring(0,10)||'-'}</div></div>
+          <div class="info-item"><div class="info-label">Max Devices</div><div class="info-value">${plan?.max_devices||'-'}</div></div>
+          <div class="info-item"><div class="info-label">Duration</div><div class="info-value">${plan?.duration||'-'}</div></div>
+        </div>
+        <div class="links-section">
+          <div class="links-title">Connection Links</div>
+          ${userProtos.map(p => {
+            const link = makeLink(p);
+            const icons = {vless:'link-icon vless',vmess:'link-icon vmess',mtproto:'link-icon mtproto',trojan:'link-icon trojan'};
+            return `<div class="link-item" onclick="copyLink('${link.replace(/'/g,"\\'")}')">
+              <div class="${icons[p.type]||'link-icon vless'}">${p.type==='mtproto'?'📱':'🔗'}</div>
+              <div class="link-info"><div class="link-type">${p.type.toUpperCase()} — ${p.name}</div><div class="link-detail">${p.type==='mtproto'?`Port ${p.secret?.slice(-8)||''}...`:`:${p.port} ${p.ws_path||''}`}</div></div>
+              <div class="link-copy">copy</div>
+            </div>`;
+          }).join('') || '<div style="color:var(--dim);font-size:0.78rem;padding:8px 0">No protocols in plan</div>'}
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button class="btn btn-sm btn-ghost" onclick="copyAllLinks('${u.username}')">📋 Copy All Links</button>
+          <button class="btn btn-sm btn-ghost" onclick="copySub('${u.username}')">🔗 Copy Sub URL</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
-async function loadLinks() {
-  const user = document.getElementById('link-user').value;
+function renderLinks() {
+  const users = DATA.users || [];
+  const protos = DATA.protocols || [];
   const container = document.getElementById('links-container');
-  if (!user) { container.innerHTML = '<div class="empty">Select a user to see their links</div>'; return; }
 
-  try {
-    const r = await fetch(API + '/link/' + user);
-    const data = await r.json();
-    const links = data.links || [];
-    container.innerHTML = links.map(l => {
-      const label = l.startsWith('tg://') ? 'MTProto' : l.startsWith('vless://') ? 'VLESS' : l.startsWith('vmess://') ? 'VMess' : 'Link';
-      return `<div class="link-box"><span style="color:var(--accent);font-weight:600;font-size:0.7rem">${label}</span><br>${l}<span class="copy" onclick="copyText('${l.replace(/'/g,"\\'")}')">copy</span></div>`;
-    }).join('') || '<div class="empty">No links for this user</div>';
+  container.innerHTML = users.map(u => {
+    const plan = (DATA.plans||[]).find(p => p.name === u.plan);
+    const userProtos = plan?.protocols?.map(pn => protos.find(p => p.name === pn)).filter(Boolean) || [];
+    if (!userProtos.length) return '';
 
-    // Subscription URL
-    if (links.length > 0) {
-      const sub = btoa(links.join('\n'));
-      container.innerHTML += `<div style="margin-top:16px"><div class="panel-title" style="margin-bottom:8px">Subscription URL (for v2rayNG)</div><div class="link-box">${sub.substring(0,80)}...<span class="copy" onclick="copyText('${sub}')">copy full</span></div></div>`;
-    }
-  } catch(e) { container.innerHTML = '<div class="empty">Error loading links</div>'; }
+    const allLinks = userProtos.map(p => makeLink(p)).filter(Boolean);
+    const sub = btoa(allLinks.join('\n'));
+
+    return `<div class="card" style="margin-bottom:12px">
+      <div class="card-header">
+        <div class="card-title"><span class="user-status ${u.status}" style="width:6px;height:6px;display:inline-block"></span> ${u.username}</div>
+        <button class="btn btn-sm btn-ghost" onclick="copyLink('${sub}')">Copy Sub</button>
+      </div>
+      <div class="card-body" style="padding:12px">
+        ${allLinks.map(link => {
+          const isTg = link.startsWith('tg://');
+          const isVless = link.startsWith('vless://');
+          const type = isTg ? 'MTProto' : isVless ? 'VLESS' : 'VMess';
+          const icon = isTg ? 'mtproto' : 'vless';
+          return `<div class="link-item" onclick="copyLink('${link.replace(/'/g,"\\'")}')">
+            <div class="link-icon ${icon}">${isTg?'📱':'🔗'}</div>
+            <div class="link-info"><div class="link-type">${type}</div><div class="link-detail">${link.substring(0,60)}...</div></div>
+            <div class="link-copy">copy</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).filter(Boolean).join('') || '<div class="empty"><div class="empty-icon">🔗</div><div class="empty-title">No links available</div><div class="empty-desc">Add users with plans that include protocols</div></div>';
 }
 
-async function copyUserLinks(user) {
-  try {
-    const r = await fetch(API + '/link/' + user);
-    const data = await r.json();
-    await navigator.clipboard.writeText((data.links||[]).join('\n'));
-    alert('Links copied!');
-  } catch(e) { alert('Failed'); }
+function renderSettings(nodes, protos, users, plans) {
+  document.getElementById('settings-container').innerHTML = `
+    <div class="setting"><span class="setting-key">VPS IP</span><span class="setting-val">${DATA.vps_ip||'not set'}</span></div>
+    <div class="setting"><span class="setting-key">Domain</span><span class="setting-val">${DATA.vps_domain||'not set'}</span></div>
+    <div class="setting"><span class="setting-key">Web Port</span><span class="setting-val">${DATA.web_port||'-'}</span></div>
+    <div class="setting"><span class="setting-key">Web Path</span><span class="setting-val">${DATA.web_path||'/'}</span></div>
+    <div class="setting"><span class="setting-key">Auth</span><span class="setting-val">${DATA.auth_enabled?'Enabled':'Disabled'}</span></div>
+  `;
+  document.getElementById('services-container').innerHTML = (nodes||[]).map(n =>
+    `<div class="svc-row"><div class="svc-dot ${n.active?'active':'inactive'}" style="background:${n.active?'var(--green)':'var(--dim2)'}"></div><span style="flex:1">${n.name}</span>${badge(n.type,'blue')}</div>`
+  ).join('') + (protos||[]).map(p =>
+    `<div class="svc-row"><div class="svc-dot" style="background:${p.active?'var(--green)':'var(--dim2)'}"></div><span style="flex:1">${p.name}</span>${badge(p.type,'blue')} :${p.port}</div>`
+  ).join('');
 }
 
-function copyText(text) {
-  navigator.clipboard.writeText(text).then(() => {
-    const el = event.target;
-    el.textContent = 'copied!';
-    setTimeout(() => el.textContent = 'copy', 1500);
-  });
+function copyAllLinks(username) {
+  const plan = (DATA.plans||[]).find(p => p.name === (DATA.users||[]).find(u=>u.username===username)?.plan);
+  const protos = (plan?.protocols||[]).map(pn => (DATA.protocols||[]).find(p=>p.name===pn)).filter(Boolean);
+  const links = protos.map(p => makeLink(p)).filter(Boolean);
+  copyLink(links.join('\n'));
 }
 
+function copySub(username) {
+  const plan = (DATA.plans||[]).find(p => p.name === (DATA.users||[]).find(u=>u.username===username)?.plan);
+  const protos = (plan?.protocols||[]).map(pn => (DATA.protocols||[]).find(p=>p.name===pn)).filter(Boolean);
+  const links = protos.map(p => makeLink(p)).filter(Boolean);
+  copyLink(btoa(links.join('\n')));
+}
+
+// ─── Init ───────────────────────────────────────
 load();
 setInterval(load, 30000);
 </script>
