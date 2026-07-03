@@ -1,21 +1,32 @@
 use clap::{Parser, Subcommand};
-use crate::{config::ConfigStore, db::Database, nodes, protocols, imports, plans, users, links, enforcer, monitor, service};
+use crate::{config::ConfigStore, db::Database, nodes, protocols, imports, plans, users, links, enforcer, monitor, service, sub, web};
 
 #[derive(Parser)]
-#[command(name = "tunnelforge", version, about = "Manage censorship bypass proxy tunnels")]
+#[command(name = "tunnelforge", version = "0.3.0", about = "Manage censorship bypass proxy tunnels")]
 pub struct Cli { #[command(subcommand)] command: Commands }
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Set VPS IP and domain
+    Config { #[command(subcommand)] action: ConfigAction },
     Node { #[command(subcommand)] action: NodeAction },
     Proto { #[command(subcommand)] action: ProtoAction },
     Import { #[command(subcommand)] action: ImportAction },
     Plan { #[command(subcommand)] action: PlanAction },
     User { #[command(subcommand)] action: UserAction },
     Link { username: String, #[arg(long, default_value = "all")] format: String },
+    /// Generate subscription URL (base64)
+    Sub { username: String, #[arg(long)] output: Option<String> },
     Service { #[command(subcommand)] action: ServiceAction },
+    /// Start web dashboard
+    Web { #[arg(long, default_value = "8080")] port: u16 },
     Status, Map, Ports,
     Enforce { #[arg(long)] dry_run: bool },
+}
+
+#[derive(Subcommand)] pub enum ConfigAction {
+    SetVps { #[arg(long)] ip: Option<String>, #[arg(long)] domain: Option<String> },
+    Show,
 }
 
 #[derive(Subcommand)] pub enum NodeAction {
@@ -40,17 +51,19 @@ pub enum Commands {
 }
 #[derive(Subcommand)] pub enum ServiceAction {
     Apply { #[arg(long)] restart: bool },
-    Start { name: String },
-    Stop { name: String },
-    Restart { name: String },
-    Status,
+    Start { name: String }, Stop { name: String }, Restart { name: String }, Status,
 }
 
 pub fn run() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let cfg = ConfigStore::load()?;
     let db = Database::open()?;
+
     match cli.command {
+        Commands::Config { action } => match action {
+            ConfigAction::SetVps { ip, domain } => crate::config::set_vps(&cfg, ip, domain),
+            ConfigAction::Show => crate::config::show(&cfg),
+        },
         Commands::Node { action } => match action {
             NodeAction::Add { name, r#type, server, key, socks_port, external_port } => nodes::add(&name, &r#type, server, key, socks_port, external_port),
             NodeAction::List => nodes::list(&cfg),
@@ -81,6 +94,7 @@ pub fn run() -> anyhow::Result<()> {
             UserAction::Reset { username, extend_days, reset_data } => users::reset(&db, &username, extend_days, reset_data),
         },
         Commands::Link { username, format } => links::generate(&db, &cfg, &username, &format),
+        Commands::Sub { username, output } => sub::generate(&db, &cfg, &username, output.as_deref()),
         Commands::Service { action } => match action {
             ServiceAction::Apply { restart } => service::apply(&cfg, restart),
             ServiceAction::Start { name } => service::start(&name),
@@ -88,6 +102,10 @@ pub fn run() -> anyhow::Result<()> {
             ServiceAction::Restart { name } => service::restart(&name),
             ServiceAction::Status => service::service_status(),
         },
+        Commands::Web { port } => {
+            let rt = tokio::runtime::Runtime::new()?;
+            rt.block_on(web::start_web(&db, port))
+        }
         Commands::Status => monitor::status(&db),
         Commands::Map => monitor::map(&cfg),
         Commands::Ports => monitor::ports(),

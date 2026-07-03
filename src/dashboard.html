@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TunnelForge Dashboard</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f0f13;color:#e0e0e0;min-height:100vh}
+.header{background:#1a1a24;padding:20px 30px;border-bottom:1px solid #2a2a3a;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:1.5rem;color:#fff}.header h1 span{color:#6c5ce7}
+.header .status{display:flex;gap:15px;font-size:0.85rem}
+.header .status .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px}
+.dot-green{background:#00b894}.dot-red{background:#e74c3c}.dot-yellow{background:#fdcb6e}
+.container{max-width:1200px;margin:0 auto;padding:20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-bottom:30px}
+.card{background:#1a1a24;border:1px solid #2a2a3a;border-radius:12px;padding:20px}
+.card h3{font-size:0.85rem;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:15px}
+.card .value{font-size:2rem;font-weight:700;color:#fff}
+.card .sub{font-size:0.8rem;color:#666;margin-top:5px}
+table{width:100%;border-collapse:collapse;font-size:0.9rem}
+th{text-align:left;padding:10px 12px;border-bottom:2px solid #2a2a3a;color:#888;font-weight:600;text-transform:uppercase;font-size:0.75rem;letter-spacing:1px}
+td{padding:10px 12px;border-bottom:1px solid #1f1f2f}
+tr:hover{background:#1f1f2f}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.75rem;font-weight:600}
+.badge-green{background:#00b89422;color:#00b894;border:1px solid #00b89444}
+.badge-red{background:#e74c3c22;color:#e74c3c;border:1px solid #e74c3c44}
+.badge-yellow{background:#fdcb6e22;color:#fdcb6e;border:1px solid #fdcb6e44}
+.badge-blue{background:#6c5ce722;color:#6c5ce7;border:1px solid #6c5ce744}
+.btn{padding:8px 16px;border:none;border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:600;transition:all 0.2s}
+.btn-primary{background:#6c5ce7;color:#fff}.btn-primary:hover{background:#5a4bd1}
+.btn-danger{background:#e74c3c22;color:#e74c3c;border:1px solid #e74c3c44}
+.btn-danger:hover{background:#e74c3c44}
+.section-title{font-size:1.1rem;color:#fff;margin-bottom:15px;display:flex;align-items:center;gap:10px}
+.section-title .icon{font-size:1.3rem}
+.flow{display:flex;align-items:center;gap:10px;padding:12px;background:#12121a;border-radius:8px;margin-bottom:8px;font-size:0.85rem}
+.flow .arrow{color:#6c5ce7;font-weight:bold}
+.copy-btn{background:none;border:1px solid #2a2a3a;color:#888;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.75rem}
+.copy-btn:hover{border-color:#6c5ce7;color:#6c5ce7}
+@media(max-width:768px){.grid{grid-template-columns:1fr}.container{padding:10px}}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🔥 <span>Tunnel</span>Forge</h1>
+  <div class="status" id="header-status">
+    <span><span class="dot dot-green"></span> Loading...</span>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Stats Cards -->
+  <div class="grid" id="stats-grid">
+    <div class="card"><h3>Exit Nodes</h3><div class="value" id="stat-nodes">-</div><div class="sub" id="stat-nodes-sub"></div></div>
+    <div class="card"><h3>Protocols</h3><div class="value" id="stat-protos">-</div><div class="sub" id="stat-protos-sub"></div></div>
+    <div class="card"><h3>Active Users</h3><div class="value" id="stat-users">-</div><div class="sub" id="stat-users-sub"></div></div>
+    <div class="card"><h3>Services</h3><div class="value" id="stat-services">-</div><div class="sub" id="stat-services-sub"></div></div>
+  </div>
+
+  <!-- Nodes -->
+  <h2 class="section-title"><span class="icon">🌐</span> Exit Nodes</h2>
+  <div class="card" style="margin-bottom:20px">
+    <table><thead><tr><th>Name</th><th>Type</th><th>Server</th><th>SOCKS Port</th><th>Status</th></tr></thead><tbody id="nodes-table"></tbody></table>
+  </div>
+
+  <!-- Protocols -->
+  <h2 class="section-title"><span class="icon">🔗</span> Protocols</h2>
+  <div class="card" style="margin-bottom:20px">
+    <table><thead><tr><th>Name</th><th>Type</th><th>Exit Node</th><th>Port</th><th>Status</th></tr></thead><tbody id="protos-table"></tbody></table>
+  </div>
+
+  <!-- Users -->
+  <h2 class="section-title"><span class="icon">👥</span> Users</h2>
+  <div class="card" style="margin-bottom:20px">
+    <table><thead><tr><th>Username</th><th>Plan</th><th>Status</th><th>Data Used</th><th>Expires</th><th>Actions</th></tr></thead><tbody id="users-table"></tbody></table>
+  </div>
+
+  <!-- Connection Map -->
+  <h2 class="section-title"><span class="icon">🗺️</span> Connection Map</h2>
+  <div class="card" style="margin-bottom:20px" id="map-container"></div>
+</div>
+
+<script>
+const API = '/api';
+async function fetchJSON(path) {
+  try { const r = await fetch(API + path); return await r.json(); } catch(e) { return null; }
+}
+function formatBytes(b) {
+  if (b >= 1073741824) return (b/1073741824).toFixed(1) + 'GB';
+  if (b >= 1048576) return (b/1048576).toFixed(1) + 'MB';
+  return b + 'B';
+}
+function badge(text, type) { return `<span class="badge badge-${type}">${text}</span>`; }
+function statusBadge(s) {
+  if (s === 'active') return badge('active', 'green');
+  if (s === 'suspended') return badge('suspended', 'red');
+  if (s === 'expired') return badge('expired', 'red');
+  return badge(s, 'yellow');
+}
+
+async function loadDashboard() {
+  const data = await fetchJSON('/status');
+  if (!data) { document.getElementById('header-status').innerHTML = '<span><span class="dot dot-red"></span> Disconnected</span>'; return; }
+
+  document.getElementById('header-status').innerHTML = '<span><span class="dot dot-green"></span> Connected</span>';
+
+  // Stats
+  document.getElementById('stat-nodes').textContent = data.nodes?.length || 0;
+  document.getElementById('stat-nodes-sub').textContent = (data.nodes || []).map(n => n.name).join(', ');
+  document.getElementById('stat-protos').textContent = data.protocols?.length || 0;
+  document.getElementById('stat-protos-sub').textContent = (data.protocols || []).map(p => p.type).join(', ');
+  document.getElementById('stat-users').textContent = (data.users || []).filter(u => u.status === 'active').length;
+  document.getElementById('stat-users-sub').textContent = `${(data.users || []).length} total`;
+  document.getElementById('stat-services').textContent = data.services?.filter(s => s.active).length || 0;
+  document.getElementById('stat-services-sub').textContent = `${(data.services || []).length} total`;
+
+  // Nodes table
+  document.getElementById('nodes-table').innerHTML = (data.nodes || []).map(n =>
+    `<tr><td><strong>${n.name}</strong></td><td>${badge(n.type, 'blue')}</td><td>${n.server || '-'}</td><td>${n.socks_port || '-'}</td><td>${n.active ? badge('running','green') : badge('stopped','red')}</td></tr>`
+  ).join('') || '<tr><td colspan="5" style="color:#666">No nodes configured</td></tr>';
+
+  // Protocols table
+  document.getElementById('protos-table').innerHTML = (data.protocols || []).map(p =>
+    `<tr><td><strong>${p.name}</strong></td><td>${badge(p.type, 'blue')}</td><td>${p.exit_node}</td><td>${p.port}</td><td>${p.active ? badge('running','green') : badge('stopped','red')}</td></tr>`
+  ).join('') || '<tr><td colspan="5" style="color:#666">No protocols configured</td></tr>';
+
+  // Users table
+  document.getElementById('users-table').innerHTML = (data.users || []).map(u =>
+    `<tr><td><strong>${u.username}</strong></td><td>${u.plan}</td><td>${statusBadge(u.status)}</td><td>${formatBytes(u.data_used)} / ${formatBytes(u.data_limit)}</td><td>${u.expires?.substring(0,10) || '-'}</td><td><button class="copy-btn" onclick="copyLink('${u.username}')">Copy Link</button></td></tr>`
+  ).join('') || '<tr><td colspan="6" style="color:#666">No users</td></tr>';
+
+  // Map
+  document.getElementById('map-container').innerHTML = (data.protocols || []).map(p => {
+    const node = (data.nodes || []).find(n => n.name === p.exit_node);
+    const users = (data.users || []).filter(u => {
+      const plan = (data.plans || []).find(pl => pl.name === u.plan);
+      return plan?.protocols?.includes(p.name);
+    });
+    return `<div class="flow"><strong>${p.name}</strong> <span class="arrow">→</span> ${p.exit_node} (${node?.type || '?'}) <span class="arrow">→</span> ${node?.exit_ip || 'internet'} <span style="margin-left:auto;color:#666">${users.length} users</span></div>`;
+  }).join('') || '<div style="color:#666">No connections mapped</div>';
+}
+
+async function copyLink(username) {
+  try {
+    const r = await fetch(`${API}/link/${username}`);
+    const data = await r.json();
+    const text = data.links?.join('\n') || '';
+    await navigator.clipboard.writeText(text);
+    alert('Links copied!');
+  } catch(e) { alert('Failed to copy'); }
+}
+
+loadDashboard();
+setInterval(loadDashboard, 30000);
+</script>
+</body>
+</html>

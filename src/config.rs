@@ -110,3 +110,24 @@ fn config_path() -> PathBuf {
 }
 
 fn default_port() -> u16 { 0 }
+
+pub fn set_vps(cfg: &ConfigStore, ip: Option<String>, domain: Option<String>) -> anyhow::Result<()> {
+    let mut cfg = ConfigStore::load()?;
+    if let Some(ip) = ip { cfg.vps.ip = Some(ip); }
+    if let Some(domain) = domain { cfg.vps.domain = Some(domain); }
+    cfg.save()?;
+    println!("{} VPS config updated", "✓".to_string().as_str());
+    println!("  IP:     {}", cfg.vps.ip.as_deref().unwrap_or("not set"));
+    println!("  Domain: {}", cfg.vps.domain.as_deref().unwrap_or("not set"));
+    Ok(())
+}
+
+pub fn show(cfg: &ConfigStore) -> anyhow::Result<()> {
+    println!("VPS Config:");
+    println!("  IP:     {}", cfg.vps.ip.as_deref().unwrap_or("not set"));
+    println!("  Domain: {}", cfg.vps.domain.as_deref().unwrap_or("not set"));
+    println!("  Nodes:  {}", cfg.exit_nodes.len());
+    println!("  Protos: {}", cfg.protocols.len());
+    println!("  Plans:  {}", cfg.plans.len());
+    Ok(())
+}

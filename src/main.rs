@@ -10,9 +10,9 @@ mod links;
 mod enforcer;
 mod monitor;
 mod service;
-
-use cli::run;
+mod web;
+mod sub;
 
 fn main() -> anyhow::Result<()> {
-    run()
+    cli::run()
 }
